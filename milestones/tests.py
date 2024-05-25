@@ -1,10 +1,15 @@
-"""tests.py."""
+"""tests.py.
 
-from smart_open import open
+Some tests may not work in the version included in `rollingwindows`.
+
+Last Update: May 25 2024
+"""
+
+import en_core_web_sm
 import pytest
 import spacy
 import xx_sent_ud_sm
-import en_core_web_sm
+from smart_open import open
 from spacy.matcher import Matcher, PhraseMatcher
 
 nlp = xx_sent_ud_sm.load()

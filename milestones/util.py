@@ -1,11 +1,12 @@
-"""util.py."""
+"""util.py.
+
+Last Update: May 25 2024
+"""
 
 from typing import Any, Dict, List, Union
 
+import numpy as np
 import spacy
-from spacy.tokens import Doc
-import numpy
-
 from spacy.attrs import (
     DEP,
     ENT_ID,
@@ -35,6 +36,7 @@ from spacy.attrs import (
     SPACY,
     TAG,
 )
+from spacy.tokens import Doc
 
 SPACY_ATTRS = [
     "DEP",
@@ -121,90 +123,70 @@ def lowercase_spacy_rules(
 
 
 def filter_doc(
-    doc, filter: Union[list, set], spacy_attrs: List[str] = SPACY_ATTRS
+    doc: spacy.tokens.doc.Doc,
+    keep_ids: Union[list, set],
+    spacy_attrs: List[str] = SPACY_ATTRS,
+    force_ws: bool = True,
 ) -> spacy.tokens.doc.Doc:
-    """Filter a doc by applying a filter function.
+    """Create a filter doc, preserving desired spaCy attributes and whitespace.
 
     Args:
-        doc: A doc to filter.
-        filter: A list of token indexes to keep.
-        spacy_attrs: A list of attributes to save to the numpy array.
+        doc: A spaCy doc.
+        keep_ids: The token ids to keep.
+        spacy_attrs: A list of spaCy attributes to preserve.
+        force_ws: Force a whitespace at the end of every token except the last.
 
     Returns:
-        A new doc with only the filtered tokens and their original annotations.
+            A filtered doc.
+
+    Note:
+        In spaCy 3.6.1 `Doc.to_array()` seems to preserve custom attributes.
     """
-    # Handle docs with custom attributes
-    if doc.user_data is not {}:
-        # Make a character to token index map
-        chars_to_tokens_map = chars_to_tokens(doc)
-        # In Python 3.11, a single loop seems to be a bit faster than a list
-        # comprehension with zip. This code is commented out in case further
-        # testing shows otherwise.
-        # words = [(t.i, t.text_with_ws) for t in doc if t.i in filter]
-        # map_old_to_new, words = zip(*words)
-        words, map_old_to_new = [], []
-        for t in doc:
-            if t.i in filter:
-                words.append(t.text_with_ws)
-                map_old_to_new.append(t.i)
-        new_doc = Doc(doc.vocab, words=words)
-        # Replace the new attributes with the old ones
-        attrs_array = doc.to_array(spacy_attrs)
-        filtered_array = attrs_array[list(filter)]
-        new_doc.from_array(spacy_attrs, filtered_array)
-        # Handle docs without custom attributes
-        # Alternative method at https://gist.github.com/Jacobe2169/5086c7c4f6c56e9d3c7cfb1eb0010fe8
-        new_user_data = {}
-        for k, v in doc.user_data.items():
-            # Get the old token index from the old character index
-            token_index = chars_to_tokens_map[k[2]]
-            if token_index in filter:
-                # Add to the new user_data dict with a new character index
-                new_token_index = map_old_to_new.index(token_index)
-                new_char_index = new_doc[new_token_index].idx
-                new_user_data[(k[0], k[1], new_char_index, k[3])] = v
-        setattr(new_doc, "user_data", new_user_data)
-    else:
-        new_doc = Doc(doc.vocab, words=[t.text_with_ws for t in doc if t.i in filter])
-        # Replace the new attributes with the old ones
-        attrs_array = doc.to_array(spacy_attrs)
-        filtered_array = attrs_array[filter]
-        new_doc.from_array(spacy_attrs, filtered_array)
-    return new_doc
-
-
-def remove_tokens_on_match(doc, remove_ids, spacy_attrs: List[str] = SPACY_ATTRS):
-    indexes = []
-    doc_length = len(doc)
-    for index, token in enumerate(doc):
-        if token.i in remove_ids:
-            indexes.append(index)
-        # TODO: Try to account for trailing whitespace(s)
-        # elif token.i + 1 < doc_length:
-        #     if doc[token.i + 1].is_space:
-        #         indexes.append(index)
-    np_array = doc.to_array(spacy_attrs)
-    np_array = numpy.delete(np_array, indexes, axis=0)
-    if doc.user_data is not {}:
-        chars_to_tokens_map = chars_to_tokens(doc)
-        map_old_to_new = [t.i for t in doc if t.i not in indexes]
-        doc2 = Doc(
-            doc.vocab, words=[t.text for i, t in enumerate(doc) if i not in indexes]
-        )
-        doc2.from_array(spacy_attrs, np_array)
-        new_user_data = {}
-        for k, v in doc.user_data.items():
-            # Get the old token index from the old character index
-            token_index = chars_to_tokens_map[k[2]]
-            if token_index not in remove_ids:
-                # Add to the new user_data dict with a new character index
-                new_token_index = map_old_to_new.index(token_index)
-                new_char_index = doc2[new_token_index].idx
-                new_user_data[(k[0], k[1], new_char_index, k[3])] = v
-        setattr(doc2, "user_data", new_user_data)
-    else:
-        doc2 = Doc(
-            doc.vocab, words=[t.text for i, t in enumerate(doc) if i not in remove_ids]
-        )
-        doc2.from_array(spacy_attrs, np_array)
+    words = []
+    remove_indexes = []
+    for i, token in enumerate(doc):
+        if i in keep_ids:
+            words.append(token.text)
+        else:
+            remove_indexes.append(i)
+    np_array = get_doc_array(doc, spacy_attrs, force_ws)
+    np_array = np.delete(np_array, remove_indexes, axis=0)
+    doc2 = Doc(doc.vocab, words=words)
+    doc2.from_array(spacy_attrs, np_array)
     return doc2
+
+
+def get_doc_array(
+    doc: spacy.tokens.doc.Doc,
+    spacy_attrs: List[str] = SPACY_ATTRS,
+    force_ws: bool = True,
+) -> np.ndarray:
+    """Get a numpy array of the doc.
+
+    Args:
+        doc: A spaCy doc.
+        spacy_attrs: A list of spaCy attributes to preserve.
+        force_ws: Force a whitespace at the end of every token except the last.
+
+    Returns:
+        A numpy array of the doc.
+
+    Notes:
+        1. `force_ws=True` ensures that `token_with_ws` and `whitespace_` attributes
+                are preserved, but all tokens will be separated by whitespaces in the
+                text of a doc created from the array.
+        2. `force_ws=False` with `SPACY` in `spacy_attrs` preserves the `token_with_ws`
+                and `whitespace_` attributes and their original values. This may cause
+                tokens to be merged if subsequent processing operates on the `doc.text`.
+        3. `force_ws=False` without `SPACY` in `spacy_attrs` does not preserve the
+                `token_with_ws` and `whitespace_` attributes or their values. By default,
+                `doc.text` displays a single space between each token.
+    """
+    if force_ws:
+        if SPACY not in spacy_attrs:
+            spacy_attrs.append(SPACY)
+        np_array = doc.to_array(spacy_attrs)
+        np_array[:-1, spacy_attrs.index(SPACY)] = 1
+    else:
+        np_array = doc.to_array(spacy_attrs)
+    return np_array

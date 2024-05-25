@@ -1,16 +1,44 @@
 """calculators.py.
 
-Working draft: April 20 2024
+Last Update: May 25 2024
 """
 
-from typing import Dict, Iterable, List, Protocol, Union
-from enum import Enum
 import re
-import pandas as pd
+from enum import Enum
+from typing import Dict, List, Protocol, Union, runtime_checkable
 
+import pandas as pd
 import spacy
 from spacy.matcher import Matcher
+
 from rollingwindows.helpers import ensure_list
+
+
+@runtime_checkable
+class Windows(Protocol):
+	"""Protocol for type hinting."""
+
+	...
+
+
+def is_valid_spacy_rule(pattern: list, vocab: spacy.vocab.Vocab) -> bool:
+	"""Ensure that a spaCy rule is valid.
+
+	Args:
+		pattern: A pattern to test.
+		vocab: The language model to use for testing.
+
+	Returns:
+		Whether or not the rule is valid.
+	"""
+	matcher = Matcher(vocab)
+	try:
+		matcher.add("MatcherRule", [pattern])
+		valid = True
+	except ValueError:
+		valid = False
+	return valid
+
 
 def spacy_rule_to_lower(
 	patterns: Union[Dict, List[Dict]],
@@ -74,7 +102,7 @@ class Averages(Calculator):
 	def __init__(
 		self,
 		patterns: Union[list, str],
-		windows: Iterable,
+		windows: Windows,
 		*,
 		search_method: str = "count",
 		model: str = None,
@@ -144,39 +172,11 @@ class Averages(Calculator):
 			if self.use_span_text:
 				self.search_method = "re_finditer"
 			# This might be a redundant check
-			matcher = Matcher(self.nlp.vocab)
 			for pattern in self.patterns:
-				try:
-					matcher.add("MatcherRule", [pattern])
-				except ValueError:
-					raise Exception(f"{pattern} is an invalid spaCy rule.")
+				if not is_valid_spacy_rule(pattern, self.nlp.vocab):
+					raise Exception(f"{pattern} is not a valid spaCy rule.")
 
-	def _validate_config(self, patterns, windows, search_method) -> None:
-		"""Check that all required are configurations are present and valid.
-
-		Args:
- 			patterns: A pattern or list of patterns to search in windows.
-			windows: A Windows object containing the windows to search.
-			search_method: Name of the search_method to use.
-		"""
-		check = [patterns, windows, search_method]
-		msg = "An averages calculator must be initialised with `patterns`, `windows`, and `search_method` attributes."
-		for arg in check:
-			if arg is None:
-				raise Exception(msg)
-		if search_method in ["count", "regex", "re_finditer"] and not all(isinstance(x, str) for x in patterns):
-			raise Exception(f"One or more patterns is not a valid string, which is required for the `{search_method}` search_method.")
-		if search_method == "spacy_matcher":
-			if windows.window_units == "characters":
-				raise Exception("You cannot use the `spacy_matcher` method to search character windows.")
-			matcher = Matcher(self.nlp.vocab)
-			for pattern in patterns:
-				try:
-					matcher.add("MatcherRule", [pattern])
-				except ValueError:
-					raise Exception(f"{pattern} is an invalid spaCy rule.")
-
-	def _count_pattern_matches(self, pattern, window):
+	def _count_pattern_matches(self, pattern: Union[list, str], window: Union[list, spacy.tokens.span.Span, str]) -> int:
 		"""Count the matches for a single pattern in a single window."""
 		# Count exact strings
 		if self.search_method == "count":
@@ -198,18 +198,22 @@ class Averages(Calculator):
 
 		# Count token matches over the full text
 		else:
-			return sum([(1 if self.doc.char_span(match.span()[0], match.span()[1], alignment_mode=self.alignment_mode) else 0)
-							for match in re.finditer(pattern, window, flags=self.regex_flags)])
+			return sum(
+				[
+					(
+						1
+						if self.doc.char_span(
+							match.span()[0],
+							match.span()[1],
+							alignment_mode=self.alignment_mode,
+						)
+						else 0
+					)
+					for match in re.finditer(pattern, window, flags=self.regex_flags)
+				]
+			)
 
-	def run(self) -> None:
-		"""Run the calculator."""
-		self._configure_search_method()
-		self.data = [
-			[self._count_pattern_matches(pattern, window) / self.n for pattern in self.patterns]
-			for window in self.windows
-		]
-
-	def _extract_string_pattern(self, pattern: Union[dict, list, str]):
+	def _extract_string_pattern(self, pattern: Union[dict, list, str]) -> str:
 		"""Extract a string pattern from a spaCy rule.
 
 		Args:
@@ -226,6 +230,50 @@ class Averages(Calculator):
 			pattern = pattern.get(key)
 		return pattern
 
+	def _validate_config(
+		self, patterns: Union[list, str], windows: Windows, search_method: str
+	) -> None:
+		"""Check that all required are configurations are present and valid.
+
+		Args:
+			patterns: A pattern or list of patterns to search in windows.
+			windows: A Windows object containing the windows to search.
+			search_method: Name of the search_method to use.
+		"""
+		# Check for valid Windows instance
+		if not isinstance(windows, Windows):
+			raise Exception(
+				"An averages calculator must be initialised with a valid `Windows` instance."
+			)
+		# Check that all patterns are appropriate for the specified search_method
+		if search_method in ["count", "regex", "re_finditer"] and not all(
+			isinstance(x, str) for x in patterns
+		):
+			raise Exception(
+				f"One or more patterns is not a valid string, which is required for the `{search_method}` search_method."
+			)
+		# Check that spacy_matcher is not used with character windows and has valid patterns
+		if search_method == "spacy_matcher":
+			if windows.window_units == "characters":
+				raise Exception(
+					"You cannot use the `spacy_matcher` method to search character windows."
+				)
+			for pattern in ensure_list(patterns):
+				if isinstance(pattern, str):
+					pass
+				elif not is_valid_spacy_rule(pattern, self.nlp.vocab):
+					raise Exception(f"{pattern} is not a valid spaCy rule.")
+
+	def run(self) -> None:
+		"""Run the calculator."""
+		self._configure_search_method()
+		self.data = [
+			[
+				self._count_pattern_matches(pattern, window) / self.n
+				for pattern in self.patterns
+			]
+			for window in self.windows
+		]
 
 	def to_df(self, show_spacy_rules: bool = False) -> pd.DataFrame:
 		"""Convert the data to a pandas dataframe.
@@ -254,5 +302,3 @@ class Averages(Calculator):
 			cols.append(str(pattern))
 		# Generate dataframe
 		return pd.DataFrame(self.data, columns=cols)
-
-

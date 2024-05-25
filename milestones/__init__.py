@@ -1,49 +1,23 @@
-"""milestones_slimmer.py.
+"""milestones.py.
 
-Usage:
-ms = Milestones(doc)
-spans = ms.get_matches()
-ms.set_milestones(spans)
-or
-ms.set_sentence_spans()
-
-# Generate milestone labels from milestone tokens:
-
-milestone_labels = [
-    {x["text"]: (x["start_token"], x["end_token"])}
-    for x in ms.to_list()
-]
-
-# Generate milestone labels from sentences/lines:
-
-## Method 1
-milestone_labels = [
-    {ms.doc[span.start]._.milestone_label: (span.start, span.end)}
-    for span in ms.spans
-]
-
-## Method 2 (with custom truncation)
-truncate = 10
-milestone_labels = [
-    {f"{span['text']:.{truncate}}{'...' if len(span['text']) > truncate else ''}": (span["start_token"], span["end_token"])}
-    for span in ms.to_list()
-]
+Last Update: May 25 2024
 """
+
+import re
+from enum import Enum
+from string import punctuation
+
 # TODO: Clean up method and variable names
 from typing import Any, Iterator, List, Match, Protocol
-from enum import Enum
-import re
-from string import punctuation
+
 import spacy
 from spacy.matcher import Matcher, PhraseMatcher
 from spacy.tokens import Token
 
-from . import helpers
-from . import util
+from . import helpers, util
 
 
-class Milestones(Protocol):
-    ...
+class Milestones(Protocol): ...
 
 
 class Milestones:
@@ -290,18 +264,19 @@ class Milestones:
             self.patterns = patterns
         if mode == "string":
             self.mode = "string"
-            return self._get_string_matches(patterns, self.flags)
+            spans = self._get_string_matches(patterns, self.flags)
         elif mode == "phrase":
             self.mode = "phrase"
-            return self._get_phrase_matches(patterns, self.attr)
+            spans = self._get_phrase_matches(patterns, self.attr)
         elif mode == "rule":
             self.mode = "rule"
-            return self._get_rule_matches(patterns)
+            spans = self._get_rule_matches(patterns)
         elif mode == "sentence":
-            return self.doc.sents
+            spans = self.doc.sents
         else:
             mode = self._autodetect_mode(patterns)
             return self.get_matches(patterns, mode=mode)
+        return self._remove_duplicate_spans(spans)
 
     def remove(self, patterns: Any, mode: str = "string") -> None:
         """Remove patterns.
@@ -375,9 +350,7 @@ class Milestones:
         for span in self.doc.spans["milestones"]:
             self.doc[span.start]._.milestone_iob = "B"
             # Truncate labels larger than 20 characters
-            self.doc[
-                span.start
-            ]._.milestone_label = (
+            self.doc[span.start]._.milestone_label = (
                 f"{span.text:.20}{'...' if len(span.text) > 20 else ''}"
             )
         self.type = type
@@ -422,9 +395,7 @@ class Milestones:
         for span in self.doc.spans["milestones"]:
             self.doc[span.start]._.milestone_iob = "B"
             # Truncate labels larger than 20 characters
-            self.doc[
-                span.start
-            ]._.milestone_label = (
+            self.doc[span.start]._.milestone_label = (
                 f"{span.text:.20}{'...' if len(span.text) > 20 else ''}"
             )
         self.type = "lines"
@@ -442,9 +413,31 @@ class Milestones:
             skip_token: Set milestone start to the token following the milestone span
             remove_token: Set milestone start to the token following the milestone span and
                 remove the milestone span
-
-        # TODO: Handle token._.milestone_label with `skip_token` and `remove_token`
         """
+        if skip_token or remove_token:
+            milestone_length = len(spans[0])
+            # Unset all tokens
+            for i, token in enumerate(self.doc):
+                self.doc[i]._.milestone_iob = "O"
+                self.doc[i]._.milestone_label = ""
+            # Remove the milestone token
+            if remove_token:
+                remove_ids = set()
+                for span in spans:
+                    # Set the new milestone start token
+                    self.doc[span.end]._.milestone_iob = "B"
+                    self.doc[span.end]._.milestone_label = ""
+                    # Get token ids to remove
+                    for token in span:
+                        remove_ids.add(token.i)
+                # Filter the doc
+                keep_ids = [token.i for token in self.doc if token.i not in remove_ids]
+                self.doc = util.filter_doc(self.doc, keep_ids)
+            else:
+                # Set the span end token to B
+                for span in spans:
+                    self.doc[span.end]._.milestone_iob = "B"
+                    self.doc[span.end]._.milestone_label = ""
         if skip_token or remove_token:
             # Unset all tokens
             for i, token in enumerate(self.doc):
@@ -456,36 +449,11 @@ class Milestones:
                 for token in span:
                     remove_ids.append(token.i)
                 self.doc[span.end]._.milestone_iob = "B"
-
-                # Make a new doc
-                new_doc = util.remove_tokens_on_match(self.doc, remove_ids)
-                # Get the indexes for all intial tokens, skipping spaces
-                iob = set()
-                for span in new_doc.spans:
-                    last_token = span.end
-                    while self.doc[last_token].is_space:
-                        last_token += 1
-                    iob.add(last_token + 1)
-                # Update the IOB values
-                for token in new_doc:
-                    id = token.i + 1
-                    if token.i in iob:
-                        new_doc[id]._.milestone_iob = "B"
-                    else:
-                        token._.milestone_iob = "O"
-                # for i, token in enumerate(new_doc):
-                #     if token.is_space:
-                #         new_doc[i]._.milestone_iob = "O"
-                #         new_doc[i + 1]._.milestone_iob = "B"
-            else:
-                new_doc = self.doc
             # Create new spans from the tokens with "B" attributes
             new_milestones = [
-                token.i for token in new_doc if token._.milestone_iob == "B"
+                token.i for token in self.doc if token._.milestone_iob == "B"
             ]
-            new_spans = [new_doc[i : i + milestone_length] for i in new_milestones]
-            # Update the object
-            self.doc = new_doc
+            new_spans = [self.doc[i : i + milestone_length] for i in new_milestones]
         else:
             new_spans = spans
         self.doc.spans["milestones"] = new_spans
@@ -513,9 +481,7 @@ class Milestones:
         # Set the token attributes
         for span in self.doc.spans["milestones"]:
             self.doc[span.start]._.milestone_iob = "B"
-            self.doc[
-                span.start
-            ]._.milestone_label = (
+            self.doc[span.start]._.milestone_label = (
                 f"{span.text:.20}{'...' if len(span.text) > 20 else ''}"
             )
         self.type = "sentences"

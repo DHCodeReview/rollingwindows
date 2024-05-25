@@ -1,11 +1,12 @@
 """helpers.py.
 
-Helper functions for word_windows4.py.
+Last Update: May 25 2024
 """
 
-from typing import Any, Iterable, List, Union
 import collections
 from itertools import chain, islice
+from typing import Any, Iterable, List, Union
+
 import spacy
 from spacy.matcher import Matcher
 

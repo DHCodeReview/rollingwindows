@@ -1,10 +1,14 @@
-"""registry.py."""
+"""registry.py.
+
+Last Update: May 25 2024
+"""
 import catalogue
 
-from . import calculators, filters, plotters
+# from . import calculators, filters, plotters
+from rollingwindows import calculators, filters, plotters
 
 # Create the registry
-rw_components = catalogue.create("rolling_windows2", "rw_components")
+rw_components = catalogue.create("rolling_windows", "rw_components")
 
 # Register default calculators
 rw_components.register("averages", func=calculators.Averages)
