@@ -18,20 +18,20 @@ def interpolate(
     """Get interpolated points for plotting.
 
     Args:
-                x: The x values
-                y: The y values
-                xx: The projected interpolation range
-                interpolation_kind: The interpolation function to use.
+        x: The x values
+        y: The y values
+        xx: The projected interpolation range
+        interpolation_kind: The interpolation function to use.
 
     Returns:
-                The interpolated points.
+        The interpolated points.
 
     Note:
-                The interpolation function may be either
-                [scipy.interpolate.pchip_interpolate](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.pchip_interpolate.html#scipy.interpolate.pchip_interpolate),
-                [numpy.interp](https://numpy.org/devdocs/reference/generated/numpy.interp.html#numpy.interp),
-                or one of the options for [scipy.interpolate.interp1d](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html).
-                Note however, that `scipy.interpolate.interp1d` is [deprecated](https://docs.scipy.org/doc/scipy/tutorial/interpolate/1D.html#piecewise-linear-interpolation).
+        The interpolation function may be either
+        [scipy.interpolate.pchip_interpolate](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.pchip_interpolate.html#scipy.interpolate.pchip_interpolate),
+        [numpy.interp](https://numpy.org/devdocs/reference/generated/numpy.interp.html#numpy.interp),
+        or one of the options for [scipy.interpolate.interp1d](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html).
+        Note however, that `scipy.interpolate.interp1d` is [deprecated](https://docs.scipy.org/doc/scipy/tutorial/interpolate/1D.html#piecewise-linear-interpolation).
     """
     legacy_interp1d = [
         "linear",
@@ -118,34 +118,34 @@ class RWSimplePlotter(BasePlotter):
         """Initialise object.
 
         Args:
-                        width: The width in inches.
-                        height: The height in inches.
-                        figsize: A tuple containing the width and height in inches (overrides the previous keywords).
-                        hide_spines: A list of ["top", "right", "bottom", "left"] indicating which spines to hide
-                        title: The title to use for the plot.
-                        titlepad: The padding in points to place between the title and the plot. May need to be increased
-                                        if you are showing milestone labels. Default is 6.0 points.
-                        title_position: Show the title on the "bottom" or the "top" of the figure.
-                        show_legend: Whether to show the legend.
-                        show_grid: Whether to show the grid.
-                        xlabel: The text to display along the x axis.
-                        ylabel: The text to display along the y axis.
-                        show_milestones: Whether to show the milestone markers.
-                        milestone_colors: The colour or colours to use for milestone markers. See pyplot.vlines().
-                        milestone_style: The style of the milestone markers. See pyplot.vlines().
-                        milestone_width: The width of the milestone markers. See pyplot.vlines().
-                        show_milestone_labels: Whether to show the milestone labels.
-                        milestone_labels: A list of dicts with keys as milestone labels and values as token indexes.
-                        milestone_labels_ha: The horizontal alignment of the milestone labels. See pyplot.annotate().
-                        milestone_labels_va: The vertical alignment of the milestone labels. See pyplot.annotate().
-                        milestone_labels_rotation: The rotation of the milestone labels. See pyplot.annotate().
-                        milestone_labels_offset: A tuple containing the number of pixels along the x and y axes
-                                to offset the milestone labels. See pyplot.annotate().
-                        milestone_labels_textcoords: Whether to offset milestone labels by pixels or points.
-                                See pyplot.annotate().
-                        use_interpolation: Whether to use interpolation on values.
-                        interpolation_num: Number of values to add between points.
-                        interpolation_kind: Algorithm to use for interpolation.
+        width: The width in inches.
+        height: The height in inches.
+        figsize: A tuple containing the width and height in inches (overrides the previous keywords).
+        hide_spines: A list of ["top", "right", "bottom", "left"] indicating which spines to hide
+        title: The title to use for the plot.
+        titlepad: The padding in points to place between the title and the plot. May need to be increased
+                        if you are showing milestone labels. Default is 6.0 points.
+        title_position: Show the title on the "bottom" or the "top" of the figure.
+        show_legend: Whether to show the legend.
+        show_grid: Whether to show the grid.
+        xlabel: The text to display along the x axis.
+        ylabel: The text to display along the y axis.
+        show_milestones: Whether to show the milestone markers.
+        milestone_colors: The colour or colours to use for milestone markers. See pyplot.vlines().
+        milestone_style: The style of the milestone markers. See pyplot.vlines().
+        milestone_width: The width of the milestone markers. See pyplot.vlines().
+        show_milestone_labels: Whether to show the milestone labels.
+        milestone_labels: A list of dicts with keys as milestone labels and values as token indexes.
+        milestone_labels_ha: The horizontal alignment of the milestone labels. See pyplot.annotate().
+        milestone_labels_va: The vertical alignment of the milestone labels. See pyplot.annotate().
+        milestone_labels_rotation: The rotation of the milestone labels. See pyplot.annotate().
+        milestone_labels_offset: A tuple containing the number of pixels along the x and y axes
+            to offset the milestone labels. See pyplot.annotate().
+        milestone_labels_textcoords: Whether to offset milestone labels by pixels or points.
+            See pyplot.annotate().
+        use_interpolation: Whether to use interpolation on values.
+        interpolation_num: Number of values to add between points.
+        interpolation_kind: Algorithm to use for interpolation.
         """
         self.width = width
         self.height = height
@@ -182,10 +182,10 @@ class RWSimplePlotter(BasePlotter):
         """Add numeric suffixes for duplicate milestone labels.
 
         Args:
-                        locations: A list of location dicts.
+            locations: A list of location dicts.
 
         Returns:
-                        A list of location dicts.
+            A list of location dicts.
         """
         keys = set().union(*(d.keys() for d in locations))
         if len(keys) == 1:
@@ -202,14 +202,14 @@ class RWSimplePlotter(BasePlotter):
         """Calculate the height of the longest milestone label.
 
         Args:
-                        milestone_labels: A list of milestone_label dicts
-                        milestone_labels_rotation: The rotation in degrees of the labels
+            milestone_labels: A list of milestone_label dicts
+            milestone_labels_rotation: The rotation in degrees of the labels
 
         Returns:
-                        The height of the longest label
+            The height of the longest label
 
         Note:
-                        This method is a hack to calculate the label height using a separate plot.
+            This method is a hack to calculate the label height using a separate plot.
         """
         labels = [list(item.keys()) for item in milestone_labels]
         tmp_fig, tmp_ax = plt.subplots()
@@ -232,11 +232,11 @@ class RWSimplePlotter(BasePlotter):
         """Use a dataframe to plot the rolling means with pyplot.
 
         Args:
-                        df: A dataframe containing the data to plot.
+            df: A dataframe containing the data to plot.
 
         Note:
-                        The dataframe is normally generated by a RollingWindows
-                        calculator and stored in `RollingWindows.result`.
+            The dataframe is normally generated by a RollingWindows
+            calculator and stored in `RollingWindows.result`.
         """
         if self.figsize:
             width = self.figsize[0]
@@ -292,7 +292,9 @@ class RWSimplePlotter(BasePlotter):
                 ]
             else:
                 # WARNING! The plotter object has no doc attribute. For now, raise an exception.
-                raise Exception("The `show_milestones` and `show_milestone_labels` parameters require a list of dicts assigned to `milestone_labels`.")
+                raise Exception(
+                    "The `show_milestones` and `show_milestone_labels` parameters require a list of dicts assigned to `milestone_labels`."
+                )
                 # locations = self._check_duplicate_labels(
                 #     [{t.text: t.i} for t in self.doc if t._.milestone_iob == "B"]
                 # )
@@ -328,10 +330,10 @@ class RWSimplePlotter(BasePlotter):
         """Save the plot to a file (wrapper for `pyplot.savefig()`).
 
         Args:
-                        path: The path to the file to save.
+            path: The path to the file to save.
 
         Returns:
-                        None
+            None
         """
         if not self.plot:
             raise Exception("There is no plot to save, try calling `plotter.run()`.")
@@ -341,10 +343,10 @@ class RWSimplePlotter(BasePlotter):
         """Display a plot.
 
         Note:
-                        This method calls pyplot.show(), but it won't work with
-                        an inline backend like Jupyter notebooks. It tries to
-                        detect this via a UserWarning and then just calls the
-                        `plot` attribute.
+            This method calls pyplot.show(), but it won't work with
+            an inline backend like Jupyter notebooks. It tries to
+            detect this via a UserWarning and then just calls the
+            `plot` attribute.
         """
         if not self.plot:
             self.run(kwargs)
@@ -377,7 +379,7 @@ class RWPlotlyPlotter(BasePlotter):
         milestone_label_style: dict = {
             "size": 10.0,
             "family": "Open Sans, verdana, arial, sans-serif",
-            "color": "teal"
+            "color": "teal",
         },
         **kwargs,
     ) -> None:
@@ -423,7 +425,7 @@ class RWPlotlyPlotter(BasePlotter):
         self, locations: List[Dict[str, int]]
     ) -> List[Dict[str, int]]:
         """Add numeric suffixes for duplicate milestone labels."""
-        # Recopy this from RWSimplePlotter -- it should be the same.
+        # TODO: Not yet implemented. It should be substantially the same as in RWSimplePlotter.
         ...
 
     def _get_axis_and_title_labels(self) -> Tuple[bool, str]:
@@ -500,7 +502,9 @@ class RWPlotlyPlotter(BasePlotter):
             font=self.milestone_label_style,
         )
 
-    def _plot_milestone_marker(self, x: int, df_val_min: Union[float, int], df_val_max: Union[float, int]) -> None:
+    def _plot_milestone_marker(
+        self, x: int, df_val_min: Union[float, int], df_val_max: Union[float, int]
+    ) -> None:
         """Add a milestone marker to the Plotly figure.
 
         Args:
@@ -519,7 +523,10 @@ class RWPlotlyPlotter(BasePlotter):
             line=self.milestone_marker_style,
         )
 
-    def run(self, df: pd.DataFrame,) -> None:
+    def run(
+        self,
+        df: pd.DataFrame,
+    ) -> None:
         """Use a dataframe to plot the rolling means with pyplot.
 
         Args:
@@ -536,20 +543,29 @@ class RWPlotlyPlotter(BasePlotter):
             )
         if self.show_milestones or self.show_milestone_labels:
             if not self.milestone_labels:
-                raise Exception("The `show_milestones` and `show_milestone_labels` parameters require a dictionary of labels and x-axis values assigned to `milestone_labels`.")
+                raise Exception(
+                    "The `show_milestones` and `show_milestone_labels` parameters require a dictionary of labels and x-axis values assigned to `milestone_labels`."
+                )
 
         # Massage the DataFrame for Plotly Express
         df["id"] = df.index
         df = pd.melt(df, id_vars="id", value_vars=df.columns[:-1])
 
         # Create plotly line figure
-        self.fig = px.line(df, x="id", y="value", color=self.line_color, width=self.width, height=self.height)
+        self.fig = px.line(
+            df,
+            x="id",
+            y="value",
+            color=self.line_color,
+            width=self.width,
+            height=self.height,
+        )
         title_dict, xlabel_dict, ylabel_dict = self._get_axis_and_title_labels()
         self.fig.update_layout(
             title=title_dict,
             xaxis=xlabel_dict,
             yaxis=ylabel_dict,
-            showlegend=self.showlegend
+            showlegend=self.showlegend,
         )
 
         if self.show_milestone_labels and not self.milestone_labels:
@@ -565,7 +581,6 @@ class RWPlotlyPlotter(BasePlotter):
                 if self.show_milestone_labels:
                     self._plot_milestone_label(label, x)
 
-
         # Increase the margin from the top to accommodate the milestone labels
         if self.show_milestone_labels:
             titlepad = self._get_titlepad(self.milestone_labels)
@@ -575,10 +590,10 @@ class RWPlotlyPlotter(BasePlotter):
         """Save the plot to a file.
 
         Args:
-                        path: The path to the file to save.
+            path: The path to the file to save.
 
         Returns:
-                        None
+            None
         """
         if not self.plot:
             raise Exception("There is no plot to save, try calling `plotter.run()`.")
@@ -592,4 +607,4 @@ class RWPlotlyPlotter(BasePlotter):
 
     def show(self, **kwargs) -> None:
         """Display a plot."""
-        self.fig.show(config= {"displaylogo": False})
+        self.fig.show(config={"displaylogo": False})
