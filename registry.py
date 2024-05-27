@@ -19,3 +19,4 @@ rw_components.register("non_stopword_filter", func=filters.NonStopwordFilter)
 
 # Register default plotters
 rw_components.register("rw_simple_plotter", func=plotters.RWSimplePlotter)
+rw_components.register("rw_plotly_plotter", func=plotters.RWPlotlyPlotter)
