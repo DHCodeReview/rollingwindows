@@ -176,11 +176,11 @@ Returns the value of `self.windows`.
 > [!NOTE]
 > This value is a generator, so iterating through the `Windows` object will empty the values
 
-## `rollingwindows.calculators
+## `rollingwindows.calculators`
 
 Contains registered calculators. There is currently one registered calculators: `Averages`. Each calculators is an implementation of the `Calculator` protocol, which has a `metadata` property and two methods: `run` and `to_df`.
 
-### rollingwindows.calculators.is_valid_spacy_rule
+### `rollingwindows.calculators.is_valid_spacy_rule`
 
 Applies a calculator to a document and returns a new document.
 
@@ -193,7 +193,7 @@ def is_valid_spacy_rule(pattern: list, vocab: spacy.vocab.Vocab) -> bool
 | `pattern`: _list_            | A pattern to test.                     | Yes      |
 | `vocab`: _spacy.vocab.Vocab_ | The language model to use for testing. | Yes      |
 
-### rollingwindows.calculators.spacy_rule_to_lower
+### `rollingwindows.calculators.spacy_rule_to_lower`
 
 Converts a spaCy `Matcher` rule to lower case.
 
@@ -207,7 +207,7 @@ def spacy_rule_to_lower(patterns: Union[Dict, List[Dict]], old_key: Union[List[s
 | `old_key`: _Union[List[str], str]_    | A dictionary key or list of keys to rename. Default is `["TEXT", "ORTH"]`. | No       |
 | `new_key`: _str_                      | The new key name. Default is `LOWER`.                                      | No       |
 
-### `rollingwindows.calculators.Averages
+### `rollingwindows.calculators.Averages`
 
 A calculator class to calculate rolling averages of a matched pattern in a document. The property `Averages.regex_flags` returns the flags used with methods that call the Python `re` module..
 
