@@ -172,7 +172,7 @@ class RWSimplePlotter(BasePlotter):
         self.use_interpolation = use_interpolation
         self.interpolation_num = interpolation_num
         self.interpolation_kind = interpolation_kind
-        self.plot = None
+        self.fig = None
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -324,7 +324,7 @@ class RWSimplePlotter(BasePlotter):
                         )
         plt.close()
         # Assign the plot
-        self.plot = fig
+        self.fig = fig
 
     def save(self, path: str, **kwargs) -> None:
         """Save the plot to a file (wrapper for `pyplot.savefig()`).
@@ -335,9 +335,9 @@ class RWSimplePlotter(BasePlotter):
         Returns:
             None
         """
-        if not self.plot:
+        if not self.fig:
             raise Exception("There is no plot to save, try calling `plotter.run()`.")
-        self.plot.savefig(path, **kwargs)
+        self.fig.savefig(path, **kwargs)
 
     def show(self, **kwargs) -> None:
         """Display a plot.
@@ -346,15 +346,14 @@ class RWSimplePlotter(BasePlotter):
             This method calls pyplot.show(), but it won't work with
             an inline backend like Jupyter notebooks. It tries to
             detect this via a UserWarning and then just calls the
-            `plot` attribute.
+            `fig` attribute.
         """
-        if not self.plot:
+        if not self.fig:
             self.run(kwargs)
         try:
-            self.plot.show()
+            self.fig.show()
         except UserWarning:
-            return self.plot
-
+            return self.fig
 
 class RWPlotlyPlotter(BasePlotter):
     """Plotter using Plotly."""
@@ -418,7 +417,7 @@ class RWPlotlyPlotter(BasePlotter):
         self.milestone_labels = milestone_labels
         self.milestone_label_rotation = milestone_label_rotation
         self.milestone_label_style = milestone_label_style
-        self.plot = None
+        self.fig = None
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -596,7 +595,7 @@ class RWPlotlyPlotter(BasePlotter):
         Returns:
             None
         """
-        if not self.plot:
+        if not self.fig:
             raise Exception("There is no plot to save, try calling `plotter.run()`.")
         # Try first to save as HTML; if that doesn't work, try to save as a static image
         if not path.endswith(".html"):

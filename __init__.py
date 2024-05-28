@@ -194,11 +194,11 @@ class RollingWindows:
             plotter = plotter()
         plotter.run(self.result)
         self.metadata["plotter"] = plotter.metadata
-        self.fig = plotter.plot
+        self.fig = plotter.fig
         if show:
-            plotter.show()
+            plotter.show(**kwargs)
         if file:
-            plotter.save(file)
+            plotter.save(file, **kwargs)
 
     # @timer
     def set_windows(
