@@ -509,9 +509,6 @@ class RWPlotlyPlotter(width: int = 700, height: int = 450, title: Union[dict, st
 | `milestone_label_rotation`: _Union[float, int]_ | The clockwise rotation of the milestone labels up to 90 degrees. Default is `0.0`.                                                                                                                                                                                                                                           | No       |
 | `milestone_label_style`: _dict_                 | A dict containing the styling information for the milestone labels. For valid properties, see the Plotly [documentation](https://plotly.com/python/reference/layout/annotations/#layout-annotations-items-annotation-font). Default is `{"size": 10.0, "family": "Open Sans, verdana, arial, sans-serif", "color": "teal"}`. | No       |
 
-> [!NOTE]
-> The class seems to require a `self.plot` attribute set to `None`, although it is not used. This is something to be debugged.
->
 > [!TIP]
 > When milestone labels are shown and `titlepad` is not set manually, the class attempts to detect a suitable margin by using the same trick as `RWSimplePlotter`: it constructs a plot in `matplotlib` and measures the longest label to use as a guide. This produces reasonable results unless you change the figure height. In that case, it is advisable to set `titlepad` manually.
 >
@@ -697,7 +694,7 @@ def _get_label_height(self, milestone_labels: List[dict], milestone_labels_rotat
 
 ##### `rollingwindows.plotters.RWSimplePlotter.run`
 
-Runs the plotter saves the figure to `RWSimplePlotter.plot`.
+Runs the plotter saves the figure to `RWSimplePlotter.fig`.
 
 ```python
 def runs(self, df: pd.DataFrame) -> None
