@@ -618,7 +618,7 @@ Displays a generated figure. This method calls `matplotlib.pyplot.show`. However
 
 ```python
 def show(self, config={"displaylogo": False}, **kwargs) -> None
-
+```
 
 | Parameter     | Description                                                                                                                                        | Required |
 |---------------|----------------------------------------------------------------------------------------------------------------------------------------------------|----------|
