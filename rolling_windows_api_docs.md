@@ -623,7 +623,6 @@ def show(self, config={"displaylogo": False}, **kwargs) -> None
 | Parameter     | Description                                                                                                                                        | Required |
 |---------------|----------------------------------------------------------------------------------------------------------------------------------------------------|----------|
 | `config`: _dict_ | A dictionary supply Plotly configuration values. | No      |
-```
 
 ### `rollingwindows.plotters.RWSimplePlotter`
 
