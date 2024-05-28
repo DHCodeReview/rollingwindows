@@ -400,8 +400,9 @@ class RWPlotlyPlotter(BasePlotter):
             milestone_marker_style: A dict containing the styles to apply to the milestone marker. For
                 valid properties, see https://plotly.com/python-api-reference/generated/plotly.graph_objects.layout.shape.html#plotly.graph_objects.layout.shape.Line.
             show_milestone_labels: Whether to show the milestone labels.
+            milestone_labels: A dict containing the milestone labels and their values on the x-axis.
             milestone_label_rotation: The number of degrees clockwise to rotate the milestone labels (maximum 90).
-            milestone_labels: A dicts containing the milestone labels and their values on the x-axis.
+            milestone_label_style: A dict containing the styling information for the milestone labels. For valid properties, see https://plotly.com/python/reference/layout/annotations/#layout-annotations-items-annotation-font.
         """
         self.width = width
         self.height = height
@@ -605,6 +606,10 @@ class RWPlotlyPlotter(BasePlotter):
 
             pio.write_image(self.fig, path)
 
-    def show(self, **kwargs) -> None:
-        """Display a plot."""
-        self.fig.show(config={"displaylogo": False})
+    def show(self, config={"displaylogo": False}, **kwargs) -> None:
+        """Display a plot.
+
+        Args:
+            config: A dictionary supply Plotly configuration values.
+        """
+        self.fig.show(config=config)

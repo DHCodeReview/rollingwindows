@@ -431,9 +431,39 @@ Applies the filter and returns a new, filtered doc.
 def apply(self) -> spacy.tokens.doc.Doc
 ```
 
+## `rollingwindows.helpers`
+
+Contains helper functions used by multiple files in the module. `rollingwindows.helpers.ensure_doc` may be legacy code that is not used in the current version.
+
+### `rollingwindows.helpers.ensure_doc`
+
+Converts input into a spaCy `Doc` object. The returned `Doc` is unannotated if it is derived from a string or a list of tokens.
+
+```python
+def ensure_doc(input: Union[str, List[str], spacy.tokens.doc.Doc], nlp: Union[Language, str], batch_size: int = 1000) -> spacy.tokens.doc.Doc
+```
+
+| Parameter                                              | Description                                                                 | Required |
+|--------------------------------------------------------|-----------------------------------------------------------------------------|----------|
+| `input`: _Union[str, List[str], spacy.tokens.doc.Doc]_ | string, list of tokens, or a spaCy doc.                                     | Yes      |
+| `nlp`: \_Union[Language, str]                          | The language model to use.                                                  | Yes      |
+| `batch_size`: _int_                                    | The number of texts to accumulate in an internal buffer. Default is `1000`. | No       |
+
+### `rollingwindows.helpers.ensure_list`
+
+Wraps any input in a list if it is not already a list.
+
+```python
+def ensure_list(input: Any) -> list
+```
+
+| Parameter      | Description        | Required |
+|----------------|--------------------|----------|
+| `input`: _Any_ | An input variable. | Yes      |
+
 ## `rollingwindows.plotters`
 
-Contains registered plotters. There is currently one registered plotters: `RWSimplePlotter`. Each plotters is an implementation of the `BasePlotter` protocol, which has a `metadata` property and three methods: `run` , `file`, and `show`.
+Contains registered plotters. There are currently two registered plotters: `RWSimplePlotter` and `RWPlotlyPlotter`. Each plotter is an implementation of the `BasePlotter` protocol, which has a `metadata` property and three methods: `run` , `file`, and `show`.
 
 ### `rollingwindows.plotters.interpolate`
 
@@ -449,6 +479,151 @@ def interpolate(x: np.ndarray, y: np.ndarray, xx: np.ndarray, interpolation_kind
 | `y`: _np.ndarray_           | The x values.                                         | Yes      |
 | `xx`: _np.ndarray_          | The projected interpolation range.                    | Yes      |
 | `interpolation_kind`: _str_ | The interpolation function to use. Default is `None`. | No       |
+
+### `rollingwindows.plotters.RWPlotlyPlotter`
+
+Generates a plot using [Plotly](https://plotly.com/).
+
+`rollingwindows.plotters.RWPlotlyPlotter` has a class attribute `id`, the value of which is "rw_plotly_plotter". This the `id` registered in the registry.
+
+```python
+class RWPlotlyPlotter(width: int = 700, height: int = 450, title: Union[dict, str] = "Rolling Windows Plot", xlabel: str = "Token Count", ylabel: str = "Average Frequency", line_color: str = "variable", showlegend: bool = True, titlepad: float = None, show_milestones: bool = True, milestone_marker_style: dict = {"width": 1, "color": "teal"}, show_milestone_labels: bool = False, milestone_labels: List[dict] = None, milestone_label_rotation: float = 0.0, milestone_label_style: dict = {"size": 10.0, "family": "Open Sans, verdana, arial, sans-serif", "color": "teal"}, **kwargs)
+```
+
+| Attribute                                       | Description                                                                                                                                                                                                                                                                                                                  | Required |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `width`: _int_                                  | The figure width in pixels. Default is `700`.                                                                                                                                                                                                                                                                                | No       |
+| `height`: _int_                                 | The figure height in pixels. Default is `450`.                                                                                                                                                                                                                                                                               | No       |
+| `title`: _Union[dict, str]_                     | The title of the figure. Styling can be added by passing a dict with the keywords described in Plotly's [documentation](https://plotly.com/python/reference/layout/#layout-title). Default is `Rolling Windows Plot`.                                                                                                        | No       |
+| `xlabel`: _str_                                 | The text to display along the x axis. Default is `Token Count`.                                                                                                                                                                                                                                                              | No       |
+| `ylabel`: _str_                                 | The text to display along the y axis. Default is `Average Frequency`.                                                                                                                                                                                                                                                        | No       |
+| `line_color`: _float_                           | The colour to be used for the lines on the line graph. Default is `variable`.                                                                                                                                                                                                                                                | No       |
+| `showlegend`: _bool_                            | Whether to show the legend. Default is `True`.                                                                                                                                                                                                                                                                               | No       |
+| `titlepad`: _float_                             | The margin in pixels between the title and the top of the graph. If not set, the margin will be calculated automatically from milestone label heights if the are shown. Default is `None`.                                                                                                                                   | No       |
+| `xlabel`: _str_                                 | The text to display along the x axis. Default is `Token Count`.                                                                                                                                                                                                                                                              | No       |
+| `ylabel`: _str_                                 | The text to display along the y axis. Default is `Average Frequency`.                                                                                                                                                                                                                                                        | No       |
+| `show_milestones`: _bool_                       | Whether to show the milestone markers. Default is `False`.                                                                                                                                                                                                                                                                   | No       |
+| `milestone_marker_style`: _dict_                | A dict containing the styles to apply to the milestone marker. For valid properties, see the Plotly [documentation](https://plotly.com/python-api-reference/generated/plotly.graph_objects.layout.shape.html#plotly.graph_objects.layout.shape.Line). Default is `{"width": 1, "color": "teal"}`.                            | No       |
+| `show_milestone_labels`: _bool_                 | Whether to show the milestone labels. Default is `False`.                                                                                                                                                                                                                                                                    | No       |
+| `milestone_labels`: _Dict[str, int]_            | A dict with keys as milestone labels and values as points on the x-axis. Default is `None`.                                                                                                                                                                                                                                  | No       |
+| `milestone_label_rotation`: _Union[float, int]_ | The clockwise rotation of the milestone labels up to 90 degrees. Default is `0.0`.                                                                                                                                                                                                                                           | No       |
+| `milestone_label_style`: _dict_                 | A dict containing the styling information for the milestone labels. For valid properties, see the Plotly [documentation](https://plotly.com/python/reference/layout/annotations/#layout-annotations-items-annotation-font). Default is `{"size": 10.0, "family": "Open Sans, verdana, arial, sans-serif", "color": "teal"}`. | No       |
+
+> [!NOTE]
+> The class seems to require a `self.plot` attribute set to `None`, although it is not used. This is something to be debugged.
+>
+> [!TIP]
+> When milestone labels are shown and `titlepad` is not set manually, the class attempts to detect a suitable margin by using the same trick as `RWSimplePlotter`: it constructs a plot in `matplotlib` and measures the longest label to use as a guide. This produces reasonable results unless you change the figure height. In that case, it is advisable to set `titlepad` manually.
+>
+> Once the figure is generated, it can be accessed with `self.fig`. You can then call `self.fig.update_layout()` and modify the figure using any of the parameters available in the Plotly [documentation](https://plotly.com/python/reference/layout/). This is useful to make changes not enabled by the Lexos API.
+
+#### Private Methods
+
+##### `rollingwindows.plotters.RWPlotlyPlotter._check_duplicate_labels`
+
+Adds numeric suffixes for duplicate milestone labels. Returns a dictionary containing unique keys.
+
+```python
+def _check_duplicate_labels(self, locations: List[Dict[str, int]]) -> List[Dict[str, int]]
+```
+
+| Parameter                                            | Description               | Required |
+| ---------------------------------------------------- | ------------------------- | -------- |
+| `locations`: _List[Dict[str, int]]_                  | A list of location dicts. | Yes      |
+
+> [!NOTE]
+> The method is not yet implemented. The documentation here is copied from `RWSimplePlotter` since it should be substantially the same. That said, the class currently requires milestones to be submitted as a dictionary, which requires unique keys. So this needs some further thought.
+
+##### `rollingwindows.plotters.RWPlotlyPlotter._get_axis_and_title_labels`
+
+Ensures that the `title`, `xlabel`, and `ylabel` values are dicts.
+
+```python
+def _get_axis_and_title_labels(self) -> Tuple[bool, str]
+```
+
+##### `rollingwindows.plotters.RWPlotlyPlotter._get_titlepad`
+
+Get a titlepad value based on the height of the longest milestone label if the `titlepad` class attribute is not set.
+
+```python
+def _get_titlepad(self, labels: Dict[str, int]) -> float
+```
+
+| Parameter                                            | Description               | Required |
+| ---------------------------------------------------- | ------------------------- | -------- |
+| `labels`: _Dict[str, int]_                  | A dict with the labels as keys. | Yes      |
+
+##### `rollingwindows.plotters.RWPlotlyPlotter._plot_milestone_label`
+
+Adds a milestone label to the Plotly figure.
+
+```python
+def _plot_milestone_label(self, label: str, x: int) -> None
+```
+
+| Parameter                                            | Description               | Required |
+| ---------------------------------------------------- | ------------------------- | -------- |
+| `label`: _str_                  | The text of a milestone label. | Yes      |
+| `x`: _int_                  | The location of the milestone label on the x axis. | Yes      |
+
+##### `rollingwindows.plotters.RWPlotlyPlotter._plot_milestone_marker`
+
+Adds a milestone marker (vertical line) to the Plotly figure.
+
+```python
+def _plot_milestone_marker(self, x: int, df_val_min: Union[float, int], df_val_max: Union[float, int]) -> None
+```
+
+| Parameter                                            | Description               | Required |
+| ---------------------------------------------------- | ------------------------- | -------- |
+| `x`: _int_                  | The location of the milestone label on the x axis. | Yes      |
+| `df_val_min`: _Union[float, int]_                  | The minimum value in the pandas DataFrame. | Yes      |
+| `df_val_max`: _Union[float, int]_                  | The maximum value in the pandas DataFrame. | Yes      |
+
+#### Public Methods
+
+##### `rollingwindows.plotters.RWPlotlyPlotter.run`
+
+Runs the plotter saves the figure to `RWPlotlyPlotter.fig`.
+
+```python
+def runs(self, df: pd.DataFrame) -> None
+```
+
+| Parameter                | Description                                                     | Required |
+|--------------------------|-----------------------------------------------------------------|----------|
+| `df`: _pandas.DataFrame_ | A pandas DataFrame, normally stored in `RollingWindows.result`. | Yes      |
+
+##### `rollingwindows.plotters.RWPlotlyPlotter.save`
+
+Saves the plot to a file.
+
+```python
+def save(self, path: str, **kwargs) -> None
+```
+
+| Parameter     | Description                                                                                                                                        | Required |
+|---------------|----------------------------------------------------------------------------------------------------------------------------------------------------|----------|
+| `path`: _str_ | The path to the file where the figure is to be saved. | Yes      |
+
+> [NOTE]
+> If the path ends in `.html`, this method will attempt to save the figure as a dynamic HTML file. The method accepts any keyword available for Plotly's [`Figure.write_html`](https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_html.html) method.
+>
+> Otherwise, it will attempt to save the figure as a static file in the format suggested the the extension in the filename  (e.g. `.png`, `.jpg`, `.pdf`). The method accepts any keyword available for Plotly's [`Figure.write_image`](https://plotly.github.io/plotly.py-docs/generated/plotly.io.write_image.html) method.
+
+##### `rollingwindows.plotters.RWPlotlyPlotter.show`
+
+Displays a generated figure. This method calls `matplotlib.pyplot.show`. However, since this does not work with an inline backend like Jupyter notebooks, the method tried to detect this environment via a UserWarning and then just calls the `plot` attribute.
+
+```python
+def show(self, config={"displaylogo": False}, **kwargs) -> None
+
+
+| Parameter     | Description                                                                                                                                        | Required |
+|---------------|----------------------------------------------------------------------------------------------------------------------------------------------------|----------|
+| `config`: _dict_ | A dictionary supply Plotly configuration values. | No      |
+```
 
 ### `rollingwindows.plotters.RWSimplePlotter`
 
@@ -467,7 +642,7 @@ class RWSimplePlotter(width: Union[float, int] = 6.4, height: Union[float, int] 
 | `fig_size`: _tuple_                         | A tuple containing the figure width and height in inches (overrides the `width` and `height` settings). Default is `None`.                                                                                               | `None`                 |
 | `hide_spines`: _List[str]_                  | A list of ["top", "right", "bottom", "left"] indicating which spines to hide. Default is `["top", "right"]`.                                                                                                             | `["top", "right"]`     |
 | `title`: _str_                              | The title to use for the plot. Default is `Rolling Windows Plot`.                                                                                                                                                        | `Rolling Windows Plot` |
-| `titlepad`: _float_                         | The padding in points to place between the title and the plot, which may need to be increased if you are showing milestone labels. Default is `6.o`.                                                                     | `6.0`                  |
+| `titlepad`: _float_                         | The padding in points to place between the title and the plot, which may need to be increased if you are showing milestone labels. Default is `6.0`.                                                                     | `6.0`                  |
 | `title_position`: _str_                     | Show the title on the "bottom" or the "top" of the figure. Default is `top`.                                                                                                                                             | `top`                  |
 | `show_legend`: _bool_                       | Whether to show the legend. Default is `True`.                                                                                                                                                                           | `True`                 |
 | `show_grid`: _bool_                         | Whether to show the grid. Default is `False`.                                                                                                                                                                            | `False`                |
@@ -552,36 +727,6 @@ Displays a generated figure. This method calls `matplotlib.pyplot.show`. However
 ```python
 def show(self, **kwargs) -> None
 ```
-
-## `rollingwindows.helpers`
-
-Contains helper functions used by multiple files in the module. `rollingwindows.helpers.ensure_doc` may be legacy code that is not used in the current version.
-
-### `rollingwindows.helpers.ensure_doc`
-
-Converts input into a spaCy `Doc` object. The returned `Doc` is unannotated if it is derived from a string or a list of tokens.
-
-```python
-def ensure_doc(input: Union[str, List[str], spacy.tokens.doc.Doc], nlp: Union[Language, str], batch_size: int = 1000) -> spacy.tokens.doc.Doc
-```
-
-| Parameter                                              | Description                                                                 | Required |
-|--------------------------------------------------------|-----------------------------------------------------------------------------|----------|
-| `input`: _Union[str, List[str], spacy.tokens.doc.Doc]_ | string, list of tokens, or a spaCy doc.                                     | Yes      |
-| `nlp`: \_Union[Language, str]                          | The language model to use.                                                  | Yes      |
-| `batch_size`: _int_                                    | The number of texts to accumulate in an internal buffer. Default is `1000`. | No       |
-
-### `rollingwindows.helpers.ensure_list`
-
-Wraps any input in a list if it is not already a list.
-
-```python
-def ensure_list(input: Any) -> list
-```
-
-| Parameter      | Description        | Required |
-|----------------|--------------------|----------|
-| `input`: _Any_ | An input variable. | Yes      |
 
 ## `rollingwindows.registry`
 
