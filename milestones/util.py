@@ -164,12 +164,12 @@ def get_doc_array(
     """Get a numpy array of the doc.
 
     Args:
-        doc: A spaCy doc.
-        spacy_attrs: A list of spaCy attributes to preserve.
-        force_ws: Force a whitespace at the end of every token except the last.
+        doc (spacy.tokens.doc.Doc): A spaCy doc.
+        spacy_attrs (List[str]): A list of spaCy attributes to preserve.
+        force_ws (bool): Force a whitespace at the end of every token except the last.
 
     Returns:
-        A numpy array of the doc.
+        np.ndarray: A numpy array of the doc.
 
     Notes:
         1. `force_ws=True` ensures that `token_with_ws` and `whitespace_` attributes

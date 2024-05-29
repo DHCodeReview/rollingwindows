@@ -1,6 +1,6 @@
 """__init__.py.
 
-Last Update: May 25 2024
+Last Update: May 29 2024
 """
 
 import re
@@ -19,7 +19,7 @@ def get_rw_component(id: str):
     """Get a component from the registry by id.
 
     Args:
-		id: The registry id of the component
+		id (str): The registry id of the component
 
     Returns:
 		The component class.
@@ -36,16 +36,16 @@ def sliding_windows(
     """Create the windows generator.
 
     Args:
-		input: A spaCy doc or a list of spaCy spans.
-		n: The size of the window.
-		window_units: The type of units to use ("characters", "tokens", "lines", "sentences", "spans").
-		alignment_mode: How character indices snap to token boundaries.
+		input (Union[List[spacy.tokens.span.Span], spacy.tokens.doc.Doc]): A spaCy doc or a list of spaCy spans.
+		n (int): The size of the window.
+		window_units (str): The type of units to use ("characters", "tokens", "lines", "sentences", "spans").
+		alignment_mode (str): How character indices snap to token boundaries.
 		- "strict" (no snapping)
 		- "contract" (span of all tokens completely within the character span)
 		- "expand" (span of all tokens at least partially covered by the character span)
 
     Yields:
-		A generator of sliding windows.
+		Iterator: A generator of sliding windows.
     """
     # Process character windows
     if window_units == "characters":
@@ -91,7 +91,13 @@ class RollingWindows:
         *,
         patterns: Union[list, str] = None,
     ):
-        """Initialise a RollingWindows object."""
+        """Initialise a RollingWindows object.
+
+        Args:
+            doc (spacy.tokens.doc.Doc): A spaCy Doc object.
+            model (str): The name of a spaCy model.
+            patterns (Union[list, str]): The patterns to match.
+        """
         self.doc = doc
         self.nlp = spacy.load(model)
         if patterns:
@@ -104,10 +110,10 @@ class RollingWindows:
         """Get the search method based on the window type.
 
         Args:
-			window_units: The type of window unit
+			window_units (str): The type of window unit.
 
         Returns:
-			The preliminary search method
+			str: The preliminary search method
         """
         methods = {
             "characters": "count",
@@ -123,11 +129,11 @@ class RollingWindows:
         """Get a list of characters, sentences, lines, or tokens.
 
         Args:
-			doc: A list of spaCy spans or docs.
-			window_units: "characters", "lines", "sentences", or "tokens".
+			doc (spacy.tokens.doc.Doc): A list of spaCy spans or docs.
+			window_units (str): "characters", "lines", "sentences", or "tokens".
 
         Returns:
-			A list of spaCy spans or the original doc
+			Union[List[spacy.tokens.span.Span], spacy.tokens.doc.Doc]: A list of spaCy spans or the original doc
         """
         if window_units == "sentences":
             if doc.has_annotation("SENT_START"):
@@ -153,8 +159,8 @@ class RollingWindows:
         """Set up a calculator.
 
         Args:
-			calculator: The calculator to use.
-			show_spacy_rules: Whether to use spaCy rules or strings in column labels
+			calculator (Union[Callable, str]): The calculator to use.
+			show_spacy_rules (bool): Whether to use spaCy rules or strings in column labels
         """
         if not hasattr(self, "windows"):
             raise Exception("You must call set_windows() before running calculations.")
@@ -180,9 +186,9 @@ class RollingWindows:
         """Set up the plotter.
 
         Args:
-			plotter: The plotter to use.
-			show: Whether to show the generated figure.
-			file: The filepath to save the file, if desired.
+			plotter (Union[Callable, str]): The plotter to use.
+			show (bool): Whether to show the generated figure.
+			file (str): The filepath to save the file, if desired.
         """
         if not hasattr(self, "result") or self.result is None:
             raise Exception(
@@ -212,13 +218,13 @@ class RollingWindows:
         """Set the object's windows.
 
         Args:
-			n: The number of windows to calculate
-			window_units: "characters", "lines", "sentences", or "tokens".
-			alignment_mode: How character indices snap to token boundaries.
+			n (int): The number of windows to calculate
+			window_units (str): "characters", "lines", "sentences", or "tokens".
+			alignment_mode (str): How character indices snap to token boundaries.
 			- "strict" (no snapping)
 			- "contract" (span of all tokens completely within the character span)
 			- "expand" (span of all tokens at least partially covered by the character span)
-			filter: The name of a filter or a filter object to apply to the document.
+			filter (Union[Callable, str]): The name of a filter or a filter object to apply to the document.
         """
         if filter:
             # Use the filter with the default config

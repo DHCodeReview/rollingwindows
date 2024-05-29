@@ -46,22 +46,30 @@ class Milestones:
         self._set_case_sensitivity(case_sensitive)
 
     @property
-    def spans(self) -> List[spacy.tokens.Span]:
-        """Return the doc.spans."""
+    def spans(self) -> List[spacy.tokens.span.Span]:
+        """Return the doc.spans.
+
+        Returns:
+            List[spacy.tokens.span.Span]: A list of spaCy spans.
+        """
         return self.doc.spans["milestones"]
 
     def __iter__(self) -> Iterator:
-        """Make the class iterable."""
+        """Make the class iterable.
+
+        Returns:
+            Iterator: A generator containing the object's spans.
+        """
         return (span for span in self.spans)
 
     def _autodetect_mode(self, patterns: Any) -> str:
         """Autodetect mode for matching milestones if not supplied (experimental).
 
         Args:
-            patterns: A pattern to match.
+            patterns (Any): A pattern to match.
 
-        Rules:
-            A string to supply to the get_matches() mode argument.
+        Returns:
+            str: A string to supply to the get_matches() mode argument.
         """
         for pattern in patterns:
             if isinstance(pattern, str):
@@ -82,14 +90,15 @@ class Milestones:
 
     def _get_string_matches(
         self, patterns: Any, flags: Enum
-    ) -> List[spacy.tokens.Span]:
+    ) -> List[spacy.tokens.span.Span]:
         """Get matches to milestone patterns.
 
         Args:
-            patterns: A pattern to match.
+            patterns (Any): A pattern to match.
+            flags (Enum): An enum of regex flags.
 
         Returns:
-            A list of spaCy spans matching the pattern.
+            List[spacy.tokens.span.Span]: A list of spaCy spans matching the pattern.
         """
         if self.character_map is None:
             self.character_map = util.chars_to_tokens(self.doc)
@@ -102,14 +111,15 @@ class Milestones:
 
     def _get_phrase_matches(
         self, patterns: Any, attr: str = "ORTH"
-    ) -> List[spacy.tokens.Span]:
+    ) -> List[spacy.tokens.span.Span]:
         """Get matches to milestone patterns in phrases.
 
         Args:
-            patterns: A pattern to match.
+            patterns (Any): A pattern to match.
+            attr (str): A spaCy Token attribute to search.
 
         Returns:
-            A list of spaCy spans matching the pattern.
+            List[spacy.tokens.span.Span]: A list of spaCy spans matching the pattern.
         """
         matcher = PhraseMatcher(self.nlp.vocab, attr=attr)
         patterns = [self.nlp.make_doc(text) for text in patterns]
@@ -117,14 +127,14 @@ class Milestones:
         matches = matcher(self.doc)
         return [self.doc[start:end] for _, start, end in matches]
 
-    def _get_rule_matches(self, patterns: Any) -> List[spacy.tokens.Span]:
+    def _get_rule_matches(self, patterns: Any) -> List[spacy.tokens.span.Span]:
         """Get matches to milestone patterns with spaCy rules.
 
         Args:
-            patterns: A pattern to match.
+            patterns (Any): A pattern to match.
 
         Returns:
-            A list of spaCy spans matching the pattern.
+            List[spacy.tokens.span.Span]: A list of spaCy spans matching the pattern.
         """
         spans = []
         if not self.case_sensitive:
@@ -137,15 +147,15 @@ class Milestones:
         return spans
 
     def _remove_duplicate_spans(
-        self, spans: List[spacy.tokens.Span]
-    ) -> List[spacy.tokens.Span]:
+        self, spans: List[spacy.tokens.span.Span]
+    ) -> List[spacy.tokens.span.Span]:
         """Remove duplicate spans, generally created when a pattern is added.
 
         Args:
-            spans: A list of spans
+            spans (List[spacy.tokens.span.Span]): A list of spans
 
         Returns:
-            A list of spans
+            List[spacy.tokens.span.Span]: A list of de-duplicated spans.
         """
         result = []
         seen = []
@@ -155,8 +165,12 @@ class Milestones:
                 seen.append(f"{span.start},{span.end}")
         return result
 
-    def _set_case_sensitivity(self, case_sensitive: bool = True):
-        """Set the object's case sensitivity."""
+    def _set_case_sensitivity(self, case_sensitive: bool = True) -> None:
+        """Set the object's case sensitivity.
+
+        Args:
+            case_sensitive (bool): Whether or not to use case-sensitive searching.
+        """
         if not case_sensitive:
             self.case_sensitive = False
             self.flags: Enum = re.DOTALL | re.IGNORECASE | re.MULTILINE | re.UNICODE
@@ -166,14 +180,14 @@ class Milestones:
             self.flags: Enum = re.DOTALL | re.MULTILINE | re.UNICODE
             self.attr = "ORTH"
 
-    def _to_spacy_span(self, match: Match) -> spacy.tokens.Span:
+    def _to_spacy_span(self, match: Match) -> spacy.tokens.span.Span:
         """Convert a re.match object to a spaCy span.
 
         Args:
-            A re.match object.
+            match (Match): A re.match object.
 
         Returns:
-            A spaCy span.
+            spacy.tokens.span.Span: A spaCy span.
         """
         if self.character_map is None:
             self.character_map = util.chars_to_tokens(self.doc)
@@ -190,7 +204,7 @@ class Milestones:
         """Assign token attributes in the doc based on spans.
 
         Args:
-            spans: A list of spaCy spans.
+            spans (List[spacy.tokens.span.Span]): A list of spaCy spans.
         """
         span_iter = 0
         milestone_token_starts = set()
@@ -217,11 +231,8 @@ class Milestones:
         """Add patterns.
 
         Args:
-            patterns: The pattern(s) to match
-            mode: The mode to use for matching
-
-        Returns:
-            A list of spaCy spans matching the pattern.
+            patterns (Any): The pattern(s) to match
+            mode (str): The mode to use for matching
 
         Note:
             Resulting patterns are unsorted. Depending on what you are doing,
@@ -244,16 +255,16 @@ class Milestones:
 
     def get_matches(
         self, patterns: Any = None, mode: str = None, case_sensitive: bool = True
-    ):
+    ) -> List[spacy.tokens.span.Span]:
         """Get matches to milestone patterns.
 
         Args:
-            patterns: The pattern(s) to match
-            mode: The mode to use for matching
-            case_sensitive: Whether to use case sensitive matching
+            patterns (Any): The pattern(s) to match
+            mode (str): The mode to use for matching
+            case_sensitive (bool): Whether to use case sensitive matching
 
         Returns:
-            A list of spaCy spans matching the pattern.
+            List[spacy.tokens.span.Span]: A list of spaCy spans matching the pattern.
         """
         if case_sensitive:
             self._set_case_sensitivity(case_sensitive)
@@ -282,8 +293,8 @@ class Milestones:
         """Remove patterns.
 
         Args:
-            patterns: The pattern(s) to match
-            mode: The mode to use for matching
+            patterns (Any): The pattern(s) to match
+            mode (str): The mode to use for matching
         """
         spans = self.get_matches(helpers.ensure_list(patterns), mode=mode)
         # Get a list spans to remove
@@ -317,19 +328,19 @@ class Milestones:
 
     def set_custom_spans(
         self,
-        spans: List[spacy.tokens.Span],
+        spans: List[spacy.tokens.span.Span],
         step: int = None,
         type: str = "custom",
-    ) -> List[spacy.tokens.Span]:
+    ) -> List[spacy.tokens.span.Span]:
         """Generate spans based on a custom list.
 
         Args:
-            pattern: The string or regex pattern to use to identify the milestone
-            step: The number of spans to group into each milestone span. By default, all spans are included.
-            type: The type of span used.
+            spans (List[spacy.tokens.span.Span]): A list of spaCy spans.
+            step (int): The number of spans to group into each milestone span. By default, all spans are included.
+            type (str): The type of span used.
 
         Returns:
-            A list of spaCy spans.
+            List[spacy.tokens.span.Span]: A list of spaCy spans.
         """
         self.reset()
         if step:
@@ -357,16 +368,16 @@ class Milestones:
 
     def set_line_spans(
         self, pattern: str = r".+?\n", step: int = None, remove_milestone: bool = True
-    ) -> List[spacy.tokens.Span]:
+    ) -> List[spacy.tokens.span.Span]:
         """Generate spans based on line breaks.
 
         Args:
-            pattern: The string or regex pattern to use to identify the milestone
-            step: The number of lines to include in the spans. By default, all lines are included.
-            remove_milestone: Whether or not to remove the linebreak character.
+            pattern (str): The string or regex pattern to use to identify the milestone
+            step (int): The number of lines to include in the spans. By default, all lines are included.
+            remove_milestone (bool): Whether or not to remove the linebreak character.
 
         Returns:
-            A list of spaCy spans.
+            List[spacy.tokens.span.Span]: A list of spaCy spans.
         """
         self.reset()
         spans = []
@@ -409,10 +420,10 @@ class Milestones:
         """Commit milestones to the object instance.
 
         Args:
-            spans: The span(s) to use for identifying token attributes
-            skip_token: Set milestone start to the token following the milestone span
-            remove_token: Set milestone start to the token following the milestone span and
-                remove the milestone span
+            spans (List[spacy.tokens.span.Span]): The span(s) to use for identifying token attributes.
+            skip_token (bool): Set milestone start to the token following the milestone span.
+            remove_token (bool): Set milestone start to the token following the milestone span and
+                remove the milestone span.
         """
         if skip_token or remove_token:
             milestone_length = len(spans[0])
@@ -460,11 +471,11 @@ class Milestones:
         self._assign_token_attributes(new_spans)
         self.type = "tokens"
 
-    def set_sentence_spans(self, step: int = 10):
+    def set_sentence_spans(self, step: int = 10) -> None:
         """Generate spans with n sentences per span.
 
         Args:
-            step: The number of sentences to group under a single milestone
+            step (int): The number of sentences to group under a single milestone
         """
         self.reset()
         # Get a list of segments with start and end indexes
@@ -490,10 +501,10 @@ class Milestones:
         """Get a list of milestone dicts.
 
         Args:
-            strip_punct: Strip single punctation mark at the end of the character string.
+            strip_punct (bool): Strip single punctation mark at the end of the character string.
 
         Returns:
-            A list of milestone dicts.
+            List[dict]: A list of milestone dicts.
 
         Note:
             Some language models include a final punctuation mark in the token string,
@@ -540,22 +551,22 @@ def get_multiple_milestones(
     """Get a list of Milestone objects from a list of docs.
 
     Args:
-        docs: A list of docs.
-        nlp: The language model used.
-        patterns: The list of patterns to match milestone spans or linebreaks. If nothing is supplied,
+        docs (List[spacy.tokens.doc.Doc]): A list of docs.
+        nlp (str): The language model used.
+        patterns (Any): The list of patterns to match milestone spans or linebreaks. If nothing is supplied,
             `get_line_spans()` will use the default pattern for linebreaks.
-        case_sensitive: Whether to perform case-sensitive pattern matching.
-        mode: The mode to use for token matching.
-        skip_token: Set milestone start to the token following the milestone span
-        remove_token: Set milestone start to the token following the milestone span and
+        case_sensitive (bool): Whether to perform case-sensitive pattern matching.
+        mode (str): The mode to use for token matching.
+        skip_token (bool): Set milestone start to the token following the milestone span
+        remove_token (remove_token): Set milestone start to the token following the milestone span and
             remove the milestone span
-        split_lines: Use `set_line_spans()` instead of `set_milestones()`.
-        split_sentences: bool = Use `set_sentence_spans()` instead of `set_milestones()`.
-        step: The number of lines or sentences to include in the spans. By default, all are included.
-        remove_milestone: Whether or not to remove the linebreak using `split_lines`.
+        split_lines (bool): Use `set_line_spans()` instead of `set_milestones()`.
+        split_sentences (bool): Use `set_sentence_spans()` instead of `set_milestones()`.
+        step (int): The number of lines or sentences to include in the spans. By default, all are included.
+        remove_milestone (bool): Whether or not to remove the linebreak using `split_lines`.
 
     Returns:
-        A list of Milestones objects.
+        List[Milestones]: A list of Milestones objects.
     """
     milestone_objects = []
     for doc in docs:

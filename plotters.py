@@ -1,6 +1,6 @@
 """plotters.py.
 
-Last Update: May 25 2024
+Last Update: May 29 2024
 """
 
 from typing import Dict, List, Protocol, Tuple, Union
@@ -18,10 +18,10 @@ def interpolate(
     """Get interpolated points for plotting.
 
     Args:
-        x: The x values
-        y: The y values
-        xx: The projected interpolation range
-        interpolation_kind: The interpolation function to use.
+        x (np.ndarray): The x values
+        y (np.ndarray): The y values
+        xx (np.ndarray): The projected interpolation range
+        interpolation_kind (str): The interpolation function to use.
 
     Returns:
         The interpolated points.
@@ -118,34 +118,34 @@ class RWSimplePlotter(BasePlotter):
         """Initialise object.
 
         Args:
-        width: The width in inches.
-        height: The height in inches.
-        figsize: A tuple containing the width and height in inches (overrides the previous keywords).
-        hide_spines: A list of ["top", "right", "bottom", "left"] indicating which spines to hide
-        title: The title to use for the plot.
-        titlepad: The padding in points to place between the title and the plot. May need to be increased
+        width (Union[float, int]): The width in inches.
+        height (Union[float, int]): The height in inches.
+        figsize (tuple): A tuple containing the width and height in inches (overrides the previous keywords).
+        hide_spines (bool): A list of ["top", "right", "bottom", "left"] indicating which spines to hide
+        title (str): The title to use for the plot.
+        titlepad (Union[float, int]): The padding in points to place between the title and the plot. May need to be increased
                         if you are showing milestone labels. Default is 6.0 points.
-        title_position: Show the title on the "bottom" or the "top" of the figure.
-        show_legend: Whether to show the legend.
-        show_grid: Whether to show the grid.
-        xlabel: The text to display along the x axis.
-        ylabel: The text to display along the y axis.
-        show_milestones: Whether to show the milestone markers.
-        milestone_colors: The colour or colours to use for milestone markers. See pyplot.vlines().
-        milestone_style: The style of the milestone markers. See pyplot.vlines().
-        milestone_width: The width of the milestone markers. See pyplot.vlines().
-        show_milestone_labels: Whether to show the milestone labels.
-        milestone_labels: A list of dicts with keys as milestone labels and values as token indexes.
-        milestone_labels_ha: The horizontal alignment of the milestone labels. See pyplot.annotate().
-        milestone_labels_va: The vertical alignment of the milestone labels. See pyplot.annotate().
-        milestone_labels_rotation: The rotation of the milestone labels. See pyplot.annotate().
-        milestone_labels_offset: A tuple containing the number of pixels along the x and y axes
+        title_position (str): Show the title on the "bottom" or the "top" of the figure.
+        show_legend (bool): Whether to show the legend.
+        show_grid (bool): Whether to show the grid.
+        xlabel (str): The text to display along the x axis.
+        ylabel (str): The text to display along the y axis.
+        show_milestones (bool): Whether to show the milestone markers.
+        milestone_colors (Union[List[str], str]): The colour or colours to use for milestone markers. See pyplot.vlines().
+        milestone_style (str): The style of the milestone markers. See pyplot.vlines().
+        milestone_width (int): The width of the milestone markers. See pyplot.vlines().
+        show_milestone_labels (bool): Whether to show the milestone labels.
+        milestone_labels (List[dict]): A list of dicts with keys as milestone labels and values as token indexes.
+        milestone_labels_ha (str): The horizontal alignment of the milestone labels. See pyplot.annotate().
+        milestone_labels_va (str): The vertical alignment of the milestone labels. See pyplot.annotate().
+        milestone_labels_rotation (int): The rotation of the milestone labels. See pyplot.annotate().
+        milestone_labels_offset (int): A tuple containing the number of pixels along the x and y axes
             to offset the milestone labels. See pyplot.annotate().
-        milestone_labels_textcoords: Whether to offset milestone labels by pixels or points.
-            See pyplot.annotate().
-        use_interpolation: Whether to use interpolation on values.
-        interpolation_num: Number of values to add between points.
-        interpolation_kind: Algorithm to use for interpolation.
+        milestone_labels_textcoords (tuple): Whether to offset milestone labels by pixels or points.
+            See pyplot.annotate(str).
+        use_interpolation (bool): Whether to use interpolation on values.
+        interpolation_num (int): Number of values to add between points.
+        interpolation_kind (str): Algorithm to use for interpolation.
         """
         self.width = width
         self.height = height
@@ -182,10 +182,10 @@ class RWSimplePlotter(BasePlotter):
         """Add numeric suffixes for duplicate milestone labels.
 
         Args:
-            locations: A list of location dicts.
+            locations (List[Dict[str, int]]): A list of location dicts.
 
         Returns:
-            A list of location dicts.
+            List[Dict[str, int]]: A list of location dicts.
         """
         keys = set().union(*(d.keys() for d in locations))
         if len(keys) == 1:
@@ -202,11 +202,11 @@ class RWSimplePlotter(BasePlotter):
         """Calculate the height of the longest milestone label.
 
         Args:
-            milestone_labels: A list of milestone_label dicts
-            milestone_labels_rotation: The rotation in degrees of the labels
+            milestone_labels (List[dict]): A list of milestone_label dicts
+            milestone_labels_rotation (int): The rotation in degrees of the labels
 
         Returns:
-            The height of the longest label
+            float: The height of the longest label.
 
         Note:
             This method is a hack to calculate the label height using a separate plot.
@@ -232,7 +232,7 @@ class RWSimplePlotter(BasePlotter):
         """Use a dataframe to plot the rolling means with pyplot.
 
         Args:
-            df: A dataframe containing the data to plot.
+            df (pd.DataFrame): A dataframe containing the data to plot.
 
         Note:
             The dataframe is normally generated by a RollingWindows
@@ -330,7 +330,7 @@ class RWSimplePlotter(BasePlotter):
         """Save the plot to a file (wrapper for `pyplot.savefig()`).
 
         Args:
-            path: The path to the file to save.
+            path (str): The path to the file to save.
 
         Returns:
             None
@@ -385,23 +385,23 @@ class RWPlotlyPlotter(BasePlotter):
         """Initialise object.
 
         Args:
-            width: The width of the graph.
-            height: The height of the graph. Note that if you change the height, you will need
+            width (int): The width of the graph.
+            height (int): The height of the graph. Note that if you change the height, you will need
                 to adjust the titelpad manually to show the title above milestone labels.
-            title: The title to use for the plot. If can be styled with a dict containing any of the
+            title (Union[dict, str]): The title to use for the plot. If can be styled with a dict containing any of the
                 keywords listed at https://plotly.com/python/reference/layout/#layout-title.
-            xlabel: The text to display along the x axis.
-            ylabel: The text to display along the y axis.
-            line_color: The colour pattern to use for lines on the graph.
-            showlegend: Whether or not to show the legend.
-            titlepad: The margin in pixels between the title and the top of the graph.
-            show_milestones: Whether to show the milestone markers.
-            milestone_marker_style: A dict containing the styles to apply to the milestone marker. For
+            xlabel (str): The text to display along the x axis.
+            ylabel (str): The text to display along the y axis.
+            line_color (str): The colour pattern to use for lines on the graph.
+            showlegend (bool): Whether or not to show the legend.
+            titlepad (float): The margin in pixels between the title and the top of the graph.
+            show_milestones (bool): Whether to show the milestone markers.
+            milestone_marker_style (dict): A dict containing the styles to apply to the milestone marker. For
                 valid properties, see https://plotly.com/python-api-reference/generated/plotly.graph_objects.layout.shape.html#plotly.graph_objects.layout.shape.Line.
-            show_milestone_labels: Whether to show the milestone labels.
-            milestone_labels: A dict containing the milestone labels and their values on the x-axis.
-            milestone_label_rotation: The number of degrees clockwise to rotate the milestone labels (maximum 90).
-            milestone_label_style: A dict containing the styling information for the milestone labels. For valid properties, see https://plotly.com/python/reference/layout/annotations/#layout-annotations-items-annotation-font.
+            show_milestone_labels (bool): Whether to show the milestone labels.
+            milestone_labels (List[dict]): A dict containing the milestone labels and their values on the x-axis.
+            milestone_label_rotation (float): The number of degrees clockwise to rotate the milestone labels (maximum 90).
+            milestone_label_style (dict): A dict containing the styling information for the milestone labels. For valid properties, see https://plotly.com/python/reference/layout/annotations/#layout-annotations-items-annotation-font.
         """
         self.width = width
         self.height = height
@@ -424,7 +424,14 @@ class RWPlotlyPlotter(BasePlotter):
     def _check_duplicate_labels(
         self, locations: List[Dict[str, int]]
     ) -> List[Dict[str, int]]:
-        """Add numeric suffixes for duplicate milestone labels."""
+        """Add numeric suffixes for duplicate milestone labels.
+
+        Args:
+            locations (List[Dict[str, int]]): A list of milestone locations.
+
+        Returns:
+            List[Dict[str, int]]: A list of milestone locations with unique labels.
+        """
         # TODO: Not yet implemented. It should be substantially the same as in RWSimplePlotter.
         ...
 

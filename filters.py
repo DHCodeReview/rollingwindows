@@ -1,6 +1,6 @@
 """filters.py.
 
-Last Update: May 25 2024
+Last Update: May 29 2024
 """
 
 import re
@@ -82,13 +82,13 @@ def filter_doc(
     """Create a filter doc, preserving desired spaCy attributes and whitespace.
 
     Args:
-        doc: A spaCy doc.
-        keep_ids: The token ids to keep.
-        spacy_attrs: A list of spaCy attributes to preserve.
-        force_ws: Force a whitespace at the end of every token except the last.
+        doc (spacy.tokens.doc.Doc): A spaCy doc.
+        keep_ids (Union[list, set]): The token ids to keep.
+        spacy_attrs (List[str]): A list of spaCy attributes to preserve.
+        force_ws (bool): Force a whitespace at the end of every token except the last.
 
     Returns:
-            A filtered doc.
+        spacy.tokens.doc.Doc: A filtered doc.
 
     Note:
         In spaCy 3.6.1 `Doc.to_array()` seems to preserve custom attributes.
@@ -115,12 +115,12 @@ def get_doc_array(
     """Get a numpy array of the doc.
 
     Args:
-        doc: A spaCy doc.
-        spacy_attrs: A list of spaCy attributes to preserve.
-        force_ws: Force a whitespace at the end of every token except the last.
+        doc (spacy.tokens.doc.Doc): A spaCy doc.
+        spacy_attrs (List[str]): A list of spaCy attributes to preserve.
+        force_ws (bool): Force a whitespace at the end of every token except the last.
 
     Returns:
-        A numpy array of the doc.
+        np.ndarray: A numpy array of the doc.
 
     Notes:
         1. `force_ws=True` ensures that `token_with_ws` and `whitespace_` attributes
@@ -147,10 +147,10 @@ def is_not_roman_numeral(s: str) -> bool:
     """Detect Roman numerals (capitals only).
 
     Args:
-        s: A string to match against the pattern.
+        s (str): A string to match against the pattern.
 
     Returns:
-        A boolean indicated whether or not the numeral is a Roman numeral.
+        bool: A boolean indicated whether or not the numeral is a Roman numeral.
     """
     if s == "":
         return True
@@ -189,12 +189,12 @@ class WordFilter(Filter):
         """Initialise the filter object with configuration.
 
         Args:
-            doc: A spaCy doc.
-            spacy_attrs: A list of spaCy token attributes to preserve in the filtered doc.
-            exclude: A string/regex or list of strings/regex patterns to exclude.
-            exclude_digits: If True, digits will not be treated as words.
-            exclude_roman_numerals: Same as above for Roman numerals, but only																																works on capital letters.
-            exclude_pattern: Additional patterns to add to the default exclude list.
+            doc (spacy.tokens.doc.Doc): A spaCy doc.
+            spacy_attrs (List[str]): A list of spaCy token attributes to preserve in the filtered doc.
+            exclude (Union[List[str], str]): A string/regex or list of strings/regex patterns to exclude.
+            exclude_digits (bool): If True, digits will not be treated as words.
+            exclude_roman_numerals (bool): Same as above for Roman numerals, but only																																works on capital letters.
+            exclude_pattern (Union[List[str], str]): Additional patterns to add to the default exclude list.
         """
         self.doc = doc
         self.spacy_attrs = spacy_attrs
@@ -225,7 +225,11 @@ class WordFilter(Filter):
         return {t.i for t in self.doc if all([f(t) for f in predicates])}
 
     def apply(self) -> spacy.tokens.doc.Doc:
-        """Apply the filter."""
+        """Apply the filter.
+
+        Returns:
+            spacy.tokens.doc.Doc: A spaCy Doc.
+        """
         return filter_doc(self.doc, self.word_ids, self.spacy_attrs)
 
 
@@ -243,10 +247,10 @@ class NonStopwordFilter(Filter):
         """Initialise the filter object with configuration.
 
         Args:
-            doc: A spaCy doc
-            spacy_attrs: A list of spaCy token attributes to preserve in the filtered doc.
-            additional_stopwords: A list of stop words to add to those labelled as stop words by the model.
-            case_sensitive: Use only lower case forms if False.
+            doc (spacy.tokens.doc.Doc): A spaCy doc
+            spacy_attrs (List[str]): A list of spaCy token attributes to preserve in the filtered doc.
+            additional_stopwords (List[str]): A list of stop words to add to those labelled as stop words by the model.
+            case_sensitive (bool): Use only lower case forms if False.
 
         Note:
             This is a minimal function that strips punctuation and returns words or ids
@@ -279,7 +283,7 @@ class NonStopwordFilter(Filter):
             token (spacy.tokens.Token): A spaCy token
 
         Returns:
-            True if the token should be retained.
+            bool: True if the token should be retained.
         """
         if self.case_sensitive:
             text = token.text
@@ -298,6 +302,6 @@ class NonStopwordFilter(Filter):
         """Apply the filter.
 
         Returns:
-            The filtered doc.
+            spacy.tokens.doc.Doc: The filtered doc.
         """
         return filter_doc(self.doc, self.word_ids, self.spacy_attrs)

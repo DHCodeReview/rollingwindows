@@ -1,6 +1,6 @@
 """calculators.py.
 
-Last Update: May 25 2024
+Last Update: May 29 2024
 """
 
 import re
@@ -25,11 +25,11 @@ def is_valid_spacy_rule(pattern: list, vocab: spacy.vocab.Vocab) -> bool:
 	"""Ensure that a spaCy rule is valid.
 
 	Args:
-		pattern: A pattern to test.
-		vocab: The language model to use for testing.
+		pattern (list): A pattern to test.
+		vocab (spacy.vocab.Vocab): The language model to use for testing.
 
 	Returns:
-		Whether or not the rule is valid.
+		bool: Whether or not the rule is valid.
 	"""
 	matcher = Matcher(vocab)
 	try:
@@ -48,9 +48,9 @@ def spacy_rule_to_lower(
 	"""Convert spacy Rule Matcher patterns to lowercase.
 
 	Args:
-		patterns: A list of spacy Rule Matcher patterns.
-		old_key: A dictionary key or list of keys to rename.
-		new_key: The new key name.
+		patterns (Union[Dict, List[Dict]]): A list of spacy Rule Matcher patterns.
+		old_key (Union[List[str], str]): A dictionary key or list of keys to rename.
+		new_key (str): The new key name.
 
 	Returns:
 		A list of spacy Rule Matcher patterns
@@ -115,15 +115,18 @@ class Averages(Calculator):
 		"""Initialise the calculator.
 
 		Args:
-			patterns: A pattern or list of patterns to search in windows.
-			windows: A Windows object containing the windows to search.
-			search_method: The preliminary search method to use.
-			model: The language model to be used for searching spaCy tokens/spans.
-			alignment_mode: Whether to snap searches to token boundaries. Values are
+			patterns (Union[list, str]): A pattern or list of patterns to search in windows.
+			windows (Windows): A Windows object containing the windows to search.
+			search_method (str): The preliminary search method to use.
+			model (str): The language model to be used for searching spaCy tokens/spans.
+			alignment_mode (str): Whether to snap searches to token boundaries. Values are
 				"strict", "contract", and "expand".
-			doc: The "re_finditer" method returns character start and end indexes in the window. Access to the doc from which the windows was generated is necessary to map these to the token indexes in order to use `alignment_mode`.
-			regex: Whether to use regex for searching.
-			case_sensitive: Whether to make searches case-sensitive.
+			doc (spacy.tokens.doc.Doc): A spaCy Doc. The "re_finditer" method returns character
+				start and end indexes in the window. Access to the doc from which the windows was
+				generated is necessary to map these to the token indexes in order to use `alignment_mode`.
+			regex (bool): Whether to use regex for searching.
+			case_sensitive (bool): Whether to make searches case-sensitive.
+			use_span_text (bool): Whether or not to search the raw text of window spans.
 		"""
 		if model:
 			self.nlp = spacy.load(model)
@@ -177,7 +180,15 @@ class Averages(Calculator):
 					raise Exception(f"{pattern} is not a valid spaCy rule.")
 
 	def _count_pattern_matches(self, pattern: Union[list, str], window: Union[list, spacy.tokens.span.Span, str]) -> int:
-		"""Count the matches for a single pattern in a single window."""
+		"""Count the matches for a single pattern in a single window.
+
+		Args:
+			pattern (Union[list, str]): The pattern to match.
+			window (Union[list, spacy.tokens.span.Span, str]): The window to search.
+
+		Returns:
+			int: The number of pattern matches.
+		"""
 		# Count exact strings
 		if self.search_method == "count":
 			if not self.case_sensitive:
@@ -217,10 +228,10 @@ class Averages(Calculator):
 		"""Extract a string pattern from a spaCy rule.
 
 		Args:
-			A pattern to search.
+			pattern (Union[dict, list, str]): A pattern to search.
 
 		Returns:
-			A string pattern.
+			str: A string pattern.
 		"""
 		if isinstance(pattern, list):
 			key = list(pattern[0].keys())[0]
@@ -236,9 +247,9 @@ class Averages(Calculator):
 		"""Check that all required are configurations are present and valid.
 
 		Args:
-			patterns: A pattern or list of patterns to search in windows.
-			windows: A Windows object containing the windows to search.
-			search_method: Name of the search_method to use.
+			patterns (Union[list, str]): A pattern or list of patterns to search in windows.
+			windows (Windows): A Windows object containing the windows to search.
+			search_method (str): Name of the search_method to use.
 		"""
 		# Check for valid Windows instance
 		if not isinstance(windows, Windows):
@@ -279,8 +290,11 @@ class Averages(Calculator):
 		"""Convert the data to a pandas dataframe.
 
 		Args:
-			show_spacy_rules: If True, use full spaCy rules for labels; otherwise use only the
+			show_spacy_rules (bool): If True, use full spaCy rules for labels; otherwise use only the
 			string pattern.
+
+		Returns:
+			pd.DataFrame: A pandas DataFrame.
 		"""
 		if show_spacy_rules:
 			patterns = self.patterns
