@@ -53,5 +53,5 @@ At present, I need some outside perspective on the following topics:
 - Overall usability of the code
 - How it might be streamlined
 - Whether there are any broken functions or if the code fails any stress tests
-- How the processing speed of the `Averages` calculator could be improved (whilst keeping a fairly consistent API).
+- How the processing speed of the calculator could be improved (whilst keeping a fairly consistent API).
 - Whether there are additional features that users of the module might find useful.
