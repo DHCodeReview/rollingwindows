@@ -46,7 +46,7 @@ The code requires Python 3.9 or greater as well as the following dependencies in
 
 ### Anything else we need to know?
 
-The code for `rollingwindows` was developed over the course of 2023, and then much of it was lost due to an unexplained corruption of the my Python environment before I could push the code to GitHub. As a result, much of the code had to be reconstructed. As a result, there is still a certain amount of legacy code in the module, and function and variable names may not be as clean or informative as desired. Unit tests are also a bit messy, although the coverage is pretty good.
+The code for `rollingwindows` was developed over the course of 2023, and then much of it was lost due to an unexplained corruption of my Python environment before I could push the code to GitHub. As a result, much of the code had to be reconstructed. As a result, there is still a certain amount of legacy code in the module, and function and variable names may not be as clean or informative as desired. Unit tests are also a bit messy, although the coverage is pretty good.
 
 At present, I need some outside perspective on the following topics:
 
