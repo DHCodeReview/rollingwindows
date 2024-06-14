@@ -1,86 +1,22 @@
 """calculators.py.
 
-Last Update: May 29 2024
+Last update: June 11 2024
 """
-
-import re
-from enum import Enum
-from typing import Dict, List, Protocol, Union, runtime_checkable
-
+from typing import Any, Iterable, List, Union
 import pandas as pd
+import re
 import spacy
 from spacy.matcher import Matcher
 
-from rollingwindows.helpers import ensure_list
+from rollingwindows.helpers import flatten, regex_escape, spacy_rule_to_lower, Windows
 
 
-@runtime_checkable
-class Windows(Protocol):
-	"""Protocol for type hinting."""
-
-	...
-
-
-def is_valid_spacy_rule(pattern: list, vocab: spacy.vocab.Vocab) -> bool:
-	"""Ensure that a spaCy rule is valid.
-
-	Args:
-		pattern (list): A pattern to test.
-		vocab (spacy.vocab.Vocab): The language model to use for testing.
-
-	Returns:
-		bool: Whether or not the rule is valid.
-	"""
-	matcher = Matcher(vocab)
-	try:
-		matcher.add("MatcherRule", [pattern])
-		valid = True
-	except ValueError:
-		valid = False
-	return valid
-
-
-def spacy_rule_to_lower(
-	patterns: Union[Dict, List[Dict]],
-	old_key: Union[List[str], str] = ["TEXT", "ORTH"],
-	new_key: str = "LOWER",
-) -> list:
-	"""Convert spacy Rule Matcher patterns to lowercase.
-
-	Args:
-		patterns (Union[Dict, List[Dict]]): A list of spacy Rule Matcher patterns.
-		old_key (Union[List[str], str]): A dictionary key or list of keys to rename.
-		new_key (str): The new key name.
-
-	Returns:
-		A list of spacy Rule Matcher patterns
-	"""
-
-	def convert(key):
-		if key in old_key:
-			return new_key
-		else:
-			return key
-
-	if isinstance(patterns, dict):
-		new_dict = {}
-		for key, value in patterns.items():
-			key = convert(key)
-			new_dict[key] = value
-		return new_dict
-
-	if isinstance(patterns, list):
-		new_list = []
-		for value in patterns:
-			new_list.append(spacy_rule_to_lower(value))
-		return new_list
-
-class Calculator(Protocol):
-	"""The Calculator class."""
+class BaseCalculator:
+	"""The base calculator class."""
 
 	@property
 	def metadata(self) -> dict:
-		exclude = ["data", "windows"]
+		exclude = ["data", "nlp", "windows"]
 		metadata = {"id": self.id}
 		return metadata | dict(
 			(key, getattr(self, key))
@@ -88,141 +24,192 @@ class Calculator(Protocol):
 			if key not in exclude and key not in dir(self.__class__)
 		)
 
-	def run(self, **kwargs):
-		"""Perform the calculations."""
-		...
 
-	def to_df(self, **kwargs) -> pd.DataFrame:
-		"""Convert the data to a pandas dataframe."""
-		...
+class RWCalculator(BaseCalculator):
+	id: str = "rw_calculator"
 
-class Averages(Calculator):
-	id: str = "averages"
-
-	def __init__(
-		self,
-		patterns: Union[list, str],
-		windows: Windows,
-		*,
-		search_method: str = "count",
-		model: str = None,
-		doc: spacy.tokens.doc.Doc = None,
-		alignment_mode: str = "strict",
-		regex: bool = False,
-		case_sensitive: bool = True,
-		use_span_text: bool = False,
-	) -> None:
-		"""Initialise the calculator.
+	def __init__(self,
+				 *,
+				 patterns: Union[List, str] = None,
+				 windows: Windows = None,
+				 mode: bool = "exact", # regex, spacy_matcher, multi_token, multi_token_exact
+				 case_sensitive: bool = False,
+				 alignment_mode: str = "strict",
+				 model: str = "xx_sent_ud_sm",
+				 original_doc: spacy.tokens.doc.Doc = None,
+				 query: str = "counts"):
+		"""Instantiate calculator.
 
 		Args:
 			patterns (Union[list, str]): A pattern or list of patterns to search in windows.
 			windows (Windows): A Windows object containing the windows to search.
-			search_method (str): The preliminary search method to use.
-			model (str): The language model to be used for searching spaCy tokens/spans.
+			mode (str): The search method to use.
+			case_sensitive (bool): Whether to make searches case-sensitive.
 			alignment_mode (str): Whether to snap searches to token boundaries. Values are
 				"strict", "contract", and "expand".
-			doc (spacy.tokens.doc.Doc): A spaCy Doc. The "re_finditer" method returns character
+			model (str): The language model to be used for searching spaCy tokens/spans.
+			original_doc (spacy.tokens.doc.Doc): A spaCy Doc. The "re_finditer" method returns character
 				start and end indexes in the window. Access to the doc from which the windows was
 				generated is necessary to map these to the token indexes in order to use `alignment_mode`.
-			regex (bool): Whether to use regex for searching.
-			case_sensitive (bool): Whether to make searches case-sensitive.
-			use_span_text (bool): Whether or not to search the raw text of window spans.
+			query (str): The type of data to return: "averages", "counts", or "ratios".
 		"""
-		if model:
-			self.nlp = spacy.load(model)
-		self._validate_config(patterns, windows, search_method)
+		self.patterns = patterns
 		self.windows = windows
-		self.window_units = self.windows.window_units
-		self.n = self.windows.n
-		self.patterns = ensure_list(patterns)
-		self.search_method = search_method
-		self.alignment_mode = alignment_mode
-		self.regex = regex
+		self.mode = mode
 		self.case_sensitive = case_sensitive
-		self.use_span_text = use_span_text
-		self.doc = doc
+		self.alignment_mode = alignment_mode
+		self.model = model
+		self.original_doc = original_doc
+		self.nlp = spacy.load(model)
+		self.query = query
 		self.data = []
 
 	@property
-	def regex_flags(self) -> Enum:
+	def regex_flags(self):
 		"""Return regex flags based on case_sensitive setting."""
 		if not self.case_sensitive:
 			return re.IGNORECASE | re.UNICODE
 		else:
 			return re.UNICODE
 
-	def _configure_search_method(self):
-		"""Override the initial search method based on config."""
-		# For tokens, convert string patterns to spaCy rules and use spacy_matcher
-		if self.window_units in ["lines", "sentences", "tokens"]:
-			patterns = []
-			for pattern in self.patterns:
-				if isinstance(pattern, str):
-					if self.regex:
-						pattern = [{"TEXT": {"REGEX": pattern}}]
-					else:
-						pattern = [{"TEXT": pattern}]
-					if not self.case_sensitive:
-						pattern = spacy_rule_to_lower(pattern)
-				patterns.append(pattern)
-			self.patterns = patterns
-			self.search_method == "spacy_matcher"
-		# Change count to re_search if regex is enabled
-		if self.search_method == "count" and self.regex:
-			self.search_method = "re_search"
-		# Change spacy_matcher to re_finditer if use_span_text is enabled
-		if self.search_method == "spacy_matcher":
-			if self.use_span_text:
-				self.search_method = "re_finditer"
-			# This might be a redundant check
-			for pattern in self.patterns:
-				if not is_valid_spacy_rule(pattern, self.nlp.vocab):
-					raise Exception(f"{pattern} is not a valid spaCy rule.")
-
-	def _count_pattern_matches(self, pattern: Union[list, str], window: Union[list, spacy.tokens.span.Span, str]) -> int:
-		"""Count the matches for a single pattern in a single window.
+	def _assign_variable(self, var_name: str, var: Any) -> Any:
+		"""Try to use configured values if not passed by public functions.
 
 		Args:
-			pattern (Union[list, str]): The pattern to match.
-			window (Union[list, spacy.tokens.span.Span, str]): The window to search.
+			var_name: The name of the variable.
+			var: The variable to be evaluated.
 
 		Returns:
-			int: The number of pattern matches.
+			Either the original value or the instance value.
 		"""
-		# Count exact strings
-		if self.search_method == "count":
+		if var is None:
+			var = getattr(self, var_name)
+		else:
+			setattr(self, var_name, var)
+		if var is None:
+			raise Exception(f"You must supply a value for {var_name}.")
+		return var
+
+
+
+	def _count_character_patterns_in_character_windows(self, window: str, pattern: str) -> int:
+		"""Use Python count() to count exact character matches in a character window.
+
+		Args:
+			window (str): A string window.
+			pattern (str): A string pattern to search for.
+
+		Returns:
+			The number of occurrences of the pattern in the window.
+		"""
+		if self.mode == "regex":
+			return len(re.findall(pattern, window, self.regex_flags))
+		else:
 			if not self.case_sensitive:
+				window = window.lower()
 				pattern = pattern.lower()
 			return window.count(pattern)
 
-		# Count regex matches
-		elif self.search_method == "regex":
-			return len(re.findall(pattern, window, flags=self.regex_flags))
+	def _count_in_character_window(self, window: str, pattern: str) -> int:
+		"""Choose function for counting matches in character windows.
+		Args:
+			window (str): A string window.
+			pattern (str): A string pattern to search for.
 
-		# Count spaCy rule matches (for tokens or spans)
-		elif self.search_method == "spacy_matcher":
+		Returns:
+			The number of occurrences of the pattern in the window.
+		"""
+		if self.mode in ["exact", "regex"]:
+			return self._count_character_patterns_in_character_windows(window, pattern)
+		else:
+			raise Exception("Invalid mode for character windows.")
+
+	def _count_token_patterns_in_token_lists(self, window: List[str], pattern: str) -> int:
+		"""Count patterns in lists of token strings.
+
+		Args:
+			window (List[str]): A window consisting of a list of strings.
+			pattern (str): A string pattern to search for.
+
+		Returns:
+			The number of occurrences of the pattern in the window.
+		"""
+		if self.mode == "regex":
+			return sum([len(re.findall(pattern, token, self.regex_flags)) for token in window])
+		else:
+			if not self.case_sensitive:
+				window = [token.lower() for token in window]
+				pattern = pattern.lower()
+			return window.count(pattern)
+
+	def _count_token_patterns_in_span(self, window: spacy.tokens.span.Span, pattern: Union[list, str]) -> int:
+		"""Count patterns in spans or docs.
+
+		Args:
+			window (spacy.tokens.span.Span): A window consisting of a list of spaCy spans or a spaCy doc.
+			pattern (Union[list, str]): A string pattern or spaCy rule to search for.
+
+		Returns:
+			The number of occurrences of the pattern in the window.
+		"""
+		if self.mode == "exact":
+			if not self.case_sensitive:
+				window = [token.lower_ for token in window]
+				pattern = pattern.lower()
+			else:
+				window = [token.text for token in window]
+			return window.count(pattern)
+		elif self.mode == "regex":
+			return sum([len(re.findall(pattern, token.text, self.regex_flags)) for token in window])
+		elif self.mode == "spacy_rule":
 			if not self.case_sensitive:
 				pattern = spacy_rule_to_lower(pattern)
 			matcher = Matcher(self.nlp.vocab)
-			matcher.add("MatcherRule", [pattern])
+			matcher.add("Pattern", [pattern])
 			return len(matcher(window))
 
-		# Count token matches over the full text
-		else:
-			return sum(
-				[
-					(
-						1
-						if self.doc.char_span(
-							match.span()[0],
-							match.span()[1],
-							alignment_mode=self.alignment_mode,
-						)
-						else 0
-					)
-					for match in re.finditer(pattern, window, flags=self.regex_flags)
-				]
-			)
+	def _count_token_patterns_in_span_text(self, window: str, pattern: str) -> int:
+		"""Count patterns in span or doc text with token alignment.
+		Args:
+			window (str): A string window.
+			pattern (str): A string pattern to search for.
+
+		Returns:
+			The number of occurrences of the pattern in the window.
+		"""
+		if not self.original_doc:
+			raise Exception("You must supply an `original_doc` to use `multi_token` mode.")
+		count = 0
+		if self.mode == "multi_token_exact":
+			pattern = regex_escape(pattern)
+		for match in re.finditer(pattern, window, self.regex_flags):
+			start, end = match.span()
+			span = self.original_doc.char_span(start, end, self.alignment_mode)
+			if span is not None:
+				count += 1
+		return count
+
+	def _count_in_token_window(self, window: Union[List[str], spacy.tokens.span.Span], pattern: Union[list, str]) -> int:
+		"""Choose function for counting matches in token windows.
+
+		Args:
+			window (Union[List[str], spacy.tokens.span.Span]): A window consisting of a list of token strings, a list of spaCy spans, or a spaCy doc.
+			pattern (Union[list, str]): A string pattern or spaCy rule to search for.
+
+		Returns:
+			The number of occurrences of the pattern in the window.
+		"""
+		if isinstance(window, (list, str)):
+			if self.mode in ["multi_token", "spacy_rule"]:
+				raise Exception("You cannot use spaCy rule or perform multi-token searches with a string or list of token strings.")
+			return self._count_token_patterns_in_token_lists(window, pattern)
+		elif isinstance(window, spacy.tokens.span.Span):
+			# Iterate over the full text with token boundary alignment
+			if self.mode.startswith("multi_token"):
+				return self._count_token_patterns_in_span_text(window.text, pattern)
+			# Match in single tokens
+			else:
+				return self._count_token_patterns_in_span(window, pattern)
 
 	def _extract_string_pattern(self, pattern: Union[dict, list, str]) -> str:
 		"""Extract a string pattern from a spaCy rule.
@@ -233,58 +220,120 @@ class Averages(Calculator):
 		Returns:
 			str: A string pattern.
 		"""
-		if isinstance(pattern, list):
-			key = list(pattern[0].keys())[0]
-			pattern = pattern[0].get(key)
-		elif isinstance(pattern, dict):
-			key = list(pattern.keys())[0]
-			pattern = pattern.get(key)
-		return pattern
+		return "|".join(
+			[
+				item if isinstance(item, str)
+				else list(item.values())[0]
+				for item in list(flatten(pattern))
+			]
+		)
 
-	def _validate_config(
-		self, patterns: Union[list, str], windows: Windows, search_method: str
-	) -> None:
-		"""Check that all required are configurations are present and valid.
+	def _get_ratio(self, counts: List[int]) -> float:
+		"""Calculate the ratio between two counts.
 
 		Args:
-			patterns (Union[list, str]): A pattern or list of patterns to search in windows.
-			windows (Windows): A Windows object containing the windows to search.
-			search_method (str): Name of the search_method to use.
-		"""
-		# Check for valid Windows instance
-		if not isinstance(windows, Windows):
-			raise Exception(
-				"An averages calculator must be initialised with a valid `Windows` instance."
-			)
-		# Check that all patterns are appropriate for the specified search_method
-		if search_method in ["count", "regex", "re_finditer"] and not all(
-			isinstance(x, str) for x in patterns
-		):
-			raise Exception(
-				f"One or more patterns is not a valid string, which is required for the `{search_method}` search_method."
-			)
-		# Check that spacy_matcher is not used with character windows and has valid patterns
-		if search_method == "spacy_matcher":
-			if windows.window_units == "characters":
-				raise Exception(
-					"You cannot use the `spacy_matcher` method to search character windows."
-				)
-			for pattern in ensure_list(patterns):
-				if isinstance(pattern, str):
-					pass
-				elif not is_valid_spacy_rule(pattern, self.nlp.vocab):
-					raise Exception(f"{pattern} is not a valid spaCy rule.")
+			counts (List[int]): A list of two counts.
 
-	def run(self) -> None:
-		"""Run the calculator."""
-		self._configure_search_method()
-		self.data = [
-			[
-				self._count_pattern_matches(pattern, window) / self.n
-				for pattern in self.patterns
+		Returns:
+			The calculated ratio.
+		"""
+		numerator = counts[0]
+		denominator = counts[1]
+		# Handle division by 0
+		if denominator + numerator == 0:
+			return 0
+		else:
+			return numerator / (denominator + numerator)
+
+	def _get_window_count(self, window: Union[List[str], spacy.tokens.span.Span, str], pattern: Union[list, str]) -> int:
+		"""Call character or token window methods, as appropriate.
+
+		Args:
+			window (Union[List[str], spacy.tokens.span.Span, str]): A window consisting of a list of token strings, a list of spaCy spans, a spaCy doc, or a string.
+			pattern (Union[list, str]): A string pattern or spaCy rule to search for.
+
+		Returns:
+			The number of occurrences of the pattern in the window.
+		"""
+		if self.window_units == "characters":
+			return self._count_in_character_window(window, pattern)
+		else:
+			return self._count_in_token_window(window, pattern)
+
+	def get_averages(self,
+			windows: Iterable = None,
+			patterns: Union[List, str] = None,
+		) -> None:
+		"""Run the calculator and return averages.
+
+		Args:
+			windows (Iterable): A Windows object.
+			patterns (Union[List, str]): A string pattern or spaCy rule, or a list of either.
+		"""
+		self.run(windows, patterns, "averages")
+
+	def get_counts(self,
+			windows: Iterable = None,
+			patterns: Union[List, str] = None,
+		) -> None:
+		"""Run the calculator and return counts.
+
+		Args:
+			windows (Iterable): A Windows object.
+			patterns (Union[List, str]): A string pattern or spaCy rule, or a list of either.
+		"""
+		self.run(windows, patterns, "counts")
+
+	def get_ratios(self,
+			windows: Iterable,
+			patterns: list,
+		) -> None:
+		"""Run the calculator and return counts.
+
+		Args:
+			windows (Iterable): A Windows object.
+			patterns (list): A string pattern or spaCy rule, or a list of either.
+		"""
+		self.run(windows, patterns, "ratios")
+
+	def run(self,
+			windows: Iterable = None,
+			patterns: Union[List, str] = None,
+			query: str = "counts" # averages | ratios
+		):
+		"""Run the calculator.
+
+		Args:
+			windows (Iterable): A Windows object.
+			patterns (Union[List, str]): A string pattern or spaCy rule, or a list of either.
+			query (str): String designating whether to return "counts", "averages", or "ratios".
+		"""
+		for var in [("patterns", patterns), ("windows", windows), ("query", query)]:
+			self._assign_variable(var[0], var[1])
+		self.window_units = self.windows.window_units
+		self.n = self.windows.n
+		# print(f"Calculating {self.query} of {self.mode} matches for {self.patterns} in windows of {self.n} {self.window_units}...")
+		if self.query == "averages":
+			self.data = [
+				[self._get_window_count(window, pattern) / self.n for pattern in self.patterns]
+				for window in self.windows
 			]
-			for window in self.windows
-		]
+		elif self.query == "counts":
+			self.data = [
+				[self._get_window_count(window, pattern) for pattern in self.patterns]
+				for window in self.windows
+			]
+		elif self.query == "ratios":
+			if not isinstance(patterns, list):
+				raise Exception("You must supply a list of two patterns to calculate ratios.")
+			if len(patterns) != 2:
+				raise Exception("You can only calculate ratios for two patterns.")
+			self.data = [
+				self._get_ratio([self._get_window_count(window, pattern) for pattern in self.patterns])
+				for window in self.windows
+			]
+		else:
+			raise Exception("Invalid query type.")
 
 	def to_df(self, show_spacy_rules: bool = False) -> pd.DataFrame:
 		"""Convert the data to a pandas dataframe.
@@ -314,5 +363,8 @@ class Averages(Calculator):
 			elif not self.case_sensitive and isinstance(pattern, list):
 				pattern = str(spacy_rule_to_lower(pattern))
 			cols.append(str(pattern))
+		# Merge columns for ratios
+		if self.query == "ratios":
+			cols = [":".join(cols)]
 		# Generate dataframe
 		return pd.DataFrame(self.data, columns=cols)

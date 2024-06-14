@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Callable, Iterable, List, Union
 
 import spacy
+from spacy.tokens.doc import Doc
 from timer import timer
 
 from rollingwindows import helpers
@@ -19,12 +20,67 @@ def get_rw_component(id: str):
     """Get a component from the registry by id.
 
     Args:
-		id (str): The registry id of the component
+        id (str): The registry id of the component
 
     Returns:
-		The component class.
+        The component class.
     """
     return rw_components.get(id)
+
+
+def sliding_str_windows(
+    input: Union[List[spacy.tokens.span.Span], spacy.tokens.doc.Doc, str],
+    n: int = 1000,
+    alignment_mode: str = "contract",
+) -> Iterator:
+    """Return a generator of string windows.
+
+    Args:
+        input (Union[List[spacy.tokens.span.Span], spacy.tokens.doc.Doc, str]): A spaCy doc or a list of spaCy spans.
+        n (int): The size of the window.
+        window_units (str): The type of units to use ("characters", "tokens", "lines", "sentences", "spans").
+        alignment_mode (str): How character indices snap to token boundaries.
+        - "strict" (no snapping)
+        - "contract" (span of all tokens completely within the character span)
+        - "expand" (span of all tokens at least partially covered by the character span)
+
+    Returns:
+        A generator of window strings.
+
+    Note:
+        Window boundaries are snapped to token boundaries in the original doc.
+        "Contract" means that the window will contain all tokens completely
+        within the boundaries of `i:i + n`. "Expand" means that window will
+        contain all tokens partially withn those boundaries. Setting
+        `alignment_mode="strict"` in `doc.char_span()` is not advised
+        because it returns `None` for any string that cannot be aligned to
+        token boundaries. As a result, a slice method is used if you want
+        to simply cut the text strictly on `n` characters.
+    """
+    # TODO: We have to iterate through the input twice to get the boundaries.
+    if isinstance(input, list):
+        input_spans = [span.as_doc() for span in input]
+        boundaries = [(i, i + n) for i in range(len(input_spans))]
+        for start, end in boundaries:
+            yield Doc.from_docs(input_spans[start:end]).text.strip()
+    else:
+        if isinstance(input, str):
+            alignment_mode = "strict"
+            boundaries = [(i, i + n) for i in range(len(input))]
+        else:
+            boundaries = [(i, i + n) for i in range(len(input.text))]
+        if alignment_mode == "strict":
+            for start_char, end_char in boundaries:
+                span = input[start_char:end_char]
+                if span is not None:
+                    yield span.text
+        else:
+            for start_char, end_char in boundaries:
+                span = input.char_span(
+                    start_char, end_char, alignment_mode=alignment_mode
+                )
+                if span is not None:
+                    yield span.text
 
 
 def sliding_windows(
@@ -36,16 +92,16 @@ def sliding_windows(
     """Create the windows generator.
 
     Args:
-		input (Union[List[spacy.tokens.span.Span], spacy.tokens.doc.Doc]): A spaCy doc or a list of spaCy spans.
-		n (int): The size of the window.
-		window_units (str): The type of units to use ("characters", "tokens", "lines", "sentences", "spans").
-		alignment_mode (str): How character indices snap to token boundaries.
-		- "strict" (no snapping)
-		- "contract" (span of all tokens completely within the character span)
-		- "expand" (span of all tokens at least partially covered by the character span)
+        input (Union[List[spacy.tokens.span.Span], spacy.tokens.doc.Doc]): A spaCy doc or a list of spaCy spans.
+        n (int): The size of the window.
+        window_units (str): The type of units to use ("characters", "tokens", "lines", "sentences", "spans").
+        alignment_mode (str): How character indices snap to token boundaries.
+        - "strict" (no snapping)
+        - "contract" (span of all tokens completely within the character span)
+        - "expand" (span of all tokens at least partially covered by the character span)
 
     Yields:
-		Iterator: A generator of sliding windows.
+        Iterator: A generator of sliding windows.
     """
     # Process character windows
     if window_units == "characters":
@@ -79,7 +135,7 @@ class Windows:
     alignment_mode: str = "strict"
 
     def __iter__(self):
-        return self.windows
+        return iter(self.windows)
 
 
 # RollingWindows class
@@ -110,10 +166,10 @@ class RollingWindows:
         """Get the search method based on the window type.
 
         Args:
-			window_units (str): The type of window unit.
+            window_units (str): The type of window unit.
 
         Returns:
-			str: The preliminary search method
+            str: The preliminary search method
         """
         methods = {
             "characters": "count",
@@ -129,11 +185,11 @@ class RollingWindows:
         """Get a list of characters, sentences, lines, or tokens.
 
         Args:
-			doc (spacy.tokens.doc.Doc): A list of spaCy spans or docs.
-			window_units (str): "characters", "lines", "sentences", or "tokens".
+            doc (spacy.tokens.doc.Doc): A list of spaCy spans or docs.
+            window_units (str): "characters", "lines", "sentences", or "tokens".
 
         Returns:
-			Union[List[spacy.tokens.span.Span], spacy.tokens.doc.Doc]: A list of spaCy spans or the original doc
+            Union[List[spacy.tokens.span.Span], spacy.tokens.doc.Doc]: A list of spaCy spans or the original doc
         """
         if window_units == "sentences":
             if doc.has_annotation("SENT_START"):
@@ -153,14 +209,18 @@ class RollingWindows:
     @timer
     def calculate(
         self,
-        calculator: Union[Callable, str] = "averages",
+        patterns: Union[list, str] = None,
+        calculator: Union[Callable, str] = "rw_calculator",
+        query: str = "counts",
         show_spacy_rules: bool = False,
     ) -> None:
         """Set up a calculator.
 
         Args:
-			calculator (Union[Callable, str]): The calculator to use.
-			show_spacy_rules (bool): Whether to use spaCy rules or strings in column labels
+            patterns: (Union[list, str]): The patterns to search for.
+                        calculator (Union[Callable, str]): The calculator to use.
+            query (str): String designating whether to return "counts", "averages", or "ratios".
+                        show_spacy_rules (bool): Whether to use spaCy rules or strings in column labels
         """
         if not hasattr(self, "windows"):
             raise Exception("You must call set_windows() before running calculations.")
@@ -168,12 +228,14 @@ class RollingWindows:
             if calculator:
                 # Use the "averages" calculator with the default config
                 if isinstance(calculator, str):
+                    if patterns is not None:
+                        self.patterns = patterns
                     calculator = get_rw_component(calculator)
                     calculator = calculator(
-                        patterns=self.patterns, windows=self.windows
+                        patterns=self.patterns, windows=self.windows, query=query
                     )
+            calculator.run(query=calculator.query)
             self.metadata["calculator"] = calculator.metadata
-            calculator.run()
             self.result = calculator.to_df(show_spacy_rules=show_spacy_rules)
 
     def plot(
@@ -186,9 +248,9 @@ class RollingWindows:
         """Set up the plotter.
 
         Args:
-			plotter (Union[Callable, str]): The plotter to use.
-			show (bool): Whether to show the generated figure.
-			file (str): The filepath to save the file, if desired.
+            plotter (Union[Callable, str]): The plotter to use.
+            show (bool): Whether to show the generated figure.
+            file (str): The filepath to save the file, if desired.
         """
         if not hasattr(self, "result") or self.result is None:
             raise Exception(
@@ -218,13 +280,13 @@ class RollingWindows:
         """Set the object's windows.
 
         Args:
-			n (int): The number of windows to calculate
-			window_units (str): "characters", "lines", "sentences", or "tokens".
-			alignment_mode (str): How character indices snap to token boundaries.
-			- "strict" (no snapping)
-			- "contract" (span of all tokens completely within the character span)
-			- "expand" (span of all tokens at least partially covered by the character span)
-			filter (Union[Callable, str]): The name of a filter or a filter object to apply to the document.
+            n (int): The number of windows to calculate
+            window_units (str): "characters", "lines", "sentences", or "tokens".
+            alignment_mode (str): How character indices snap to token boundaries.
+            - "strict" (no snapping)
+            - "contract" (span of all tokens completely within the character span)
+            - "expand" (span of all tokens at least partially covered by the character span)
+            filter (Union[Callable, str]): The name of a filter or a filter object to apply to the document.
         """
         if filter:
             # Use the filter with the default config
@@ -238,7 +300,12 @@ class RollingWindows:
         # characters or tokens, and the list is used to slide over sentences or lines.
         input = self._get_units(doc, window_units)
         # sliding_windows() returns a generator containing with string or span windows.
-        windows = sliding_windows(input, n, window_units, alignment_mode)
+        if window_units == "characters":
+            if isinstance(input, list):
+                input = " ".join([span.text for span in input])
+            windows = sliding_str_windows(input, n, alignment_mode)
+        else:
+            windows = sliding_windows(input, n, window_units, alignment_mode)
         # Since spans windows are lists of multiple spans, we need to get the first and last
         # token from the original doc to get a window that combines them into a single span.
         if window_units in ["lines", "sentences", "spans"]:

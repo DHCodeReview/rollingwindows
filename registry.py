@@ -11,7 +11,7 @@ from rollingwindows import calculators, filters, plotters
 rw_components = catalogue.create("rolling_windows", "rw_components")
 
 # Register default calculators
-rw_components.register("averages", func=calculators.Averages)
+rw_components.register("rw_calculator", func=calculators.RWCalculator)
 
 # Register default filters
 rw_components.register("word_filter", func=filters.WordFilter)

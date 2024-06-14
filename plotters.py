@@ -1,9 +1,9 @@
 """plotters.py.
 
-Last Update: May 29 2024
+Last Update: June 12 2024
 """
 
-from typing import Dict, List, Protocol, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -55,7 +55,7 @@ def interpolate(
         return np.interp(xx, x, y)
 
 
-class BasePlotter(Protocol):
+class BasePlotter:
     """BasePlotter class to enable type hinting."""
 
     @property
@@ -67,18 +67,6 @@ class BasePlotter(Protocol):
             for key in dir(self)
             if key not in exclude and key not in dir(self.__class__)
         )
-
-    def run(self):
-        """Use a dataframe to plot the rolling means with pyplot."""
-        ...
-
-    def file(self, path):
-        """Save the plot to a file."""
-        ...
-
-    def show(self):
-        """Display a plot."""
-        ...
 
 
 class RWSimplePlotter(BasePlotter):
@@ -121,7 +109,7 @@ class RWSimplePlotter(BasePlotter):
         width (Union[float, int]): The width in inches.
         height (Union[float, int]): The height in inches.
         figsize (tuple): A tuple containing the width and height in inches (overrides the previous keywords).
-        hide_spines (bool): A list of ["top", "right", "bottom", "left"] indicating which spines to hide
+        hide_spines (List[str]): A list of ["top", "right", "bottom", "left"] indicating which spines to hide
         title (str): The title to use for the plot.
         titlepad (Union[float, int]): The padding in points to place between the title and the plot. May need to be increased
                         if you are showing milestone labels. Default is 6.0 points.
@@ -186,6 +174,12 @@ class RWSimplePlotter(BasePlotter):
 
         Returns:
             List[Dict[str, int]]: A list of location dicts.
+
+        # WARNING
+        Note:
+            Does not handle mixes of suffixed and unsuffixed labels like
+            [{"label": 10}, {"label2": 20}, {"label": 30}], [{"label_1": 10}, {"label2": 20}, {"label_2": 30}]
+
         """
         keys = set().union(*(d.keys() for d in locations))
         if len(keys) == 1:
@@ -258,7 +252,8 @@ class RWSimplePlotter(BasePlotter):
 
         # Now generate the plot
         fig, ax = plt.subplots(figsize=(width, height))
-        ax.spines[self.hide_spines].set_visible(False)
+        for spine in self.hide_spines:
+            ax.spines[spine].set_visible(False)
         plt.margins(x=0, y=0)
         plt.ticklabel_format(axis="both", style="plain")
         if self.title_position == "bottom":
@@ -287,7 +282,8 @@ class RWSimplePlotter(BasePlotter):
             # Get milestone locations
             if self.milestone_labels:
                 locations = [
-                    {label: index[0] for label, index in item.items()}
+                    # {label: index[0] for label, index in item.items()}
+                    {label: index for label, index in item.items()}
                     for item in self.milestone_labels
                 ]
             else:
@@ -422,17 +418,20 @@ class RWPlotlyPlotter(BasePlotter):
             setattr(self, k, v)
 
     def _check_duplicate_labels(
-        self, locations: List[Dict[str, int]]
-    ) -> List[Dict[str, int]]:
+        self, locations: Dict[str, int]
+    ) -> Dict[str, int]:
         """Add numeric suffixes for duplicate milestone labels.
 
         Args:
-            locations (List[Dict[str, int]]): A list of milestone locations.
+            locations (Dict[str, int]): A list of milestone locations.
 
         Returns:
-            List[Dict[str, int]]: A list of milestone locations with unique labels.
+            Dict[str, int]: A list of milestone locations with unique labels.
         """
-        # TODO: Not yet implemented. It should be substantially the same as in RWSimplePlotter.
+        # TODO: Not implemented.
+        # Since milestone_labels is a dict, there cannot be duplicate
+        # label keys. If we wish to keep this input format, it might be
+        # a good idea to make this the responsibilit of the milestone class.
         ...
 
     def _get_axis_and_title_labels(self) -> Tuple[bool, str]:
@@ -605,7 +604,7 @@ class RWPlotlyPlotter(BasePlotter):
         if not self.fig:
             raise Exception("There is no plot to save, try calling `plotter.run()`.")
         # Try first to save as HTML; if that doesn't work, try to save as a static image
-        if not path.endswith(".html"):
+        if path.endswith(".html"):
             self.fig.write_html(path, **kwargs)
         else:
             import plotly.io as pio

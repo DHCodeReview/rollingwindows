@@ -1,11 +1,10 @@
 """filters.py.
 
-Last Update: May 29 2024
+Last Update: June 12 2024
 """
 
 import re
-from timeit import default_timer as timer
-from typing import List, Protocol, Union
+from typing import List, Union
 
 import numpy as np
 import spacy
@@ -138,6 +137,9 @@ def get_doc_array(
             spacy_attrs.append(SPACY)
         np_array = doc.to_array(spacy_attrs)
         np_array[:-1, spacy_attrs.index(SPACY)] = 1
+        # Assume the last item has no whitespace
+        np_array[-1, spacy_attrs.index(SPACY)] = 0
+
     else:
         np_array = doc.to_array(spacy_attrs)
     return np_array
@@ -158,7 +160,7 @@ def is_not_roman_numeral(s: str) -> bool:
     return not bool(re.search(pattern, s))
 
 
-class Filter(Protocol):
+class BaseFilter:
 
     @property
     def metadata(self) -> dict:
@@ -170,10 +172,8 @@ class Filter(Protocol):
             if key not in exclude and key not in dir(self.__class__)
         )
 
-    def apply(self): ...
 
-
-class WordFilter(Filter):
+class WordFilter(BaseFilter):
     id: str = "word_filter"
 
     def __init__(
@@ -233,7 +233,7 @@ class WordFilter(Filter):
         return filter_doc(self.doc, self.word_ids, self.spacy_attrs)
 
 
-class NonStopwordFilter(Filter):
+class NonStopwordFilter(BaseFilter):
     id: str = "non_stopword_filter"
 
     def __init__(
