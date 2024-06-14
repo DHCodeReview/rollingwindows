@@ -89,12 +89,14 @@ def _get_units(self, doc: spacy.tokens.doc.Doc, window_units: str = "characters"
 Uses a calculator to generates a rolling windows analysis and assigns the result to `RollingWindows.result`.
 
 ```python
-RollingWindows.calculate(calculator: Union[Callable, str] = "averages", show_spacy_rules: bool = False) -> None
+RollingWindows.calculate(patterns: Union[list, str] = None, calculator: Union[Callable, str] = "rw_calculator", query: str = "counts", show_spacy_rules: bool = False) -> None
 ```
 
 | Parameter                            | Description                                                                                                                                                                                                            | Required |
 |--------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|
-| `calculator`: _Union[Callable, str]_ | The calculator to use. Default is the built-in "averages" calculator.                                                                                                                                                  | Yes      |
+| `patterns`: _Union[list, str]_ | The patterns to search for. Default is `None`.                                                                                                                                                  | Yes      |
+| `calculator`: _Union[Callable, str]_ | The calculator to use. Default is the built-in "rw_calculator" calculator.                                                                                                                                                  | Yes      |
+| `query`: _str_ | The type of data to return ("averages", "counts", or "ratios"). Default is the built-in "ratios".                                               | Yes      |
 | `show_spacy_rules`: _bool_           | If the calculator uses a spaCy `Matcher` rule, tell the calculator's `to_df` method to display the rule as a column header; otherwise, only the value matched by the calculator will be displayed. Default is `False`. | Yes      |
 
 > [!NOTE]
@@ -178,122 +180,218 @@ Returns the value of `self.windows`.
 
 ## `rollingwindows.calculators`
 
-Contains registered calculators. There is currently one registered calculators: `Averages`. Each calculators is an implementation of the `Calculator` protocol, which has a `metadata` property and two methods: `run` and `to_df`.
+Contains registered calculators. There is currently one registered calculators: `RWCalculator`. Each calculators is a subclass of `BaseCalculator`, which has a `metadata` property.
 
-### `rollingwindows.calculators.is_valid_spacy_rule`
+### `rollingwindows.calculators.RWCalculator`
 
-Applies a calculator to a document and returns a new document.
+A calculator class to calculate rolling averages, counts, and ratios of a matched pattern or patterns in a document. The property `RWCalculator.regex_flags` returns the flags used with methods that call the Python `re` module.
 
-```python
-def is_valid_spacy_rule(pattern: list, vocab: spacy.vocab.Vocab) -> bool
-```
-
-| Parameter                    | Description                            | Required |
-|------------------------------|----------------------------------------|----------|
-| `pattern`: _list_            | A pattern to test.                     | Yes      |
-| `vocab`: _spacy.vocab.Vocab_ | The language model to use for testing. | Yes      |
-
-### `rollingwindows.calculators.spacy_rule_to_lower`
-
-Converts a spaCy `Matcher` rule to lower case.
+`rollingwindows.calculators.RWCalculator` has a class attribute `id`, the value of which is "rw_calculator". This the `id` registered in the registry.
 
 ```python
-def spacy_rule_to_lower(patterns: Union[Dict, List[Dict]], old_key: Union[List[str], str] = ["TEXT", "ORTH"], new_key: str = "LOWER") -> list
+class RWCalculator(*, patterns: Union[List, str] = None, windows: Windows = None, mode: bool = "exact", case_sensitive: bool = False, alignment_mode: str = "strict", model: str = "xx_sent_ud_sm", original_doc: spacy.tokens.doc.Doc = None, query: str = "counts")
 ```
 
-| Parameter                             | Description                                                                | Required |
-|---------------------------------------|----------------------------------------------------------------------------|----------|
-| `patterns`: _Union[Dict, List[Dict]]_ | A string to match against the Roman numerals pattern.                      | Yes      |
-| `old_key`: _Union[List[str], str]_    | A dictionary key or list of keys to rename. Default is `["TEXT", "ORTH"]`. | No       |
-| `new_key`: _str_                      | The new key name. Default is `LOWER`.                                      | No       |
+| Parameter                              | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Required                                                            |
+|----------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
+| `patterns`: _Union[list, str]_         | A pattern or list of patterns to search in windows. Default is `None`                                                                                                                                                                                                                                                                                                                                                                                                                                                     | No                                                                  |
+| `windows`: _Windows_                   | A `rollingwindows.Windows` object containing the windows to search.                                                                                                                                                                                                                                                                                                                                                                                                                                                       | No                                                                  |
+| `mode`: _str_                          | The type of search method to use:<br><br>- `exact`: Search for exact matches to a string pattern.<br>- `regex`: Search for matches to a regex expression.<br>- `spacy_rule`: Search for matches using a spaCy [Matcher](https://spacy.io/usage/rule-based-matching#matcher) class rule.<br>- `multi_token`: Search for matches to a regex expression across multiple tokens.<br>- `multi_token_exact`: Search for matches to string pattern across multiple tokens.<br><br>Default is `exact`. See the explanation below. | No                                                                  |
+| `case_sensitive`: _bool_               | Whether to make searches case-sensitive. Default is `False`.                                                                                                                                                                                                                                                                                                                                                                                                                                                              | No                                                                  |
+| `alignment_mode`: _str_                | Whether to snap searches to token boundaries:<br><br>- `strict`: No snapping.<br>- `contract`: Count all matches that fall *completely* within token boundaries.<br>- `expand`: Count all matches that fall *partially* within token boundaries.<br><br>Default is `strict`.                                                                                                                                                                                                                                              | No                                                                  |
+| `model`: _bool_                        | The name of language model to be used with spaCy's [Matcher](https://spacy.io/usage/rule-based-matching#matcher) class. Default is `xx_sent_ud_sm`.                                                                                                                                                                                                                                                                                                                                                                       | No                                                                  |
+| `original_doc`: _spacy.tokens.doc.Doc_ | A copy of the original doc. Default is `None`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | No, except if `mode` is set to `multi_token` or `multi_token_exact` |
+| `query`: _str_                         | The type of data to return: "averages", "counts", or "ratios". Default is `counts`.                                                                                                                                                                                                                                                                                                                                                                                                                                       | No                                                                  |
 
-### `rollingwindows.calculators.Averages`
-
-A calculator class to calculate rolling averages of a matched pattern in a document. The property `Averages.regex_flags` returns the flags used with methods that call the Python `re` module..
-
-`rollingwindows.calculators.Averages` has a class attribute `id`, the value of which is "averages". This the `id` registered in the registry.
-
-```python
-class Averages(patterns: Union[list, str], windows: Windows, *, search_method: str = "count", model: str = None, doc: spacy.tokens.doc.Doc = None, alignment_mode: str = "strict", regex: bool = False, case_sensitive: bool = True, use_span_text: bool = False)
-```
-
-| Parameter                      | Description                                                                                                                                                                                                                                                                  | Required                                              |
-|--------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------|
-| `patterns`: _Union[list, str]_ | A pattern or list of patterns to search in windows.                                                                                                                                                                                                                          | Yes                                                   |
-| `windows`: _Windows_           | A `rollingwindows.Windows` object containing the windows to search.                                                                                                                                                                                                          | Yes                                                   |
-| `search_method`: _str_         | The preliminary search method to use. Default is `count`. See the explanation below.                                                                                                                                                                                         | No                                                    |
-| `model`: _bool_                | The name of language model to be used with spaCy's [Matcher](https://spacy.io/usage/rule-based-matching#matcher) class. Default is `None`.                                                                                                                                   | No                                                    |
-| `doc`: _spacy.tokens.doc.Doc_  | A copy of the original doc. Default is `None`.                                                                                                                                                                                                                               | No, except if `search_method` is set to `re_finditer` |
-| `alignment_mode`: _str_        | Whether to snap searches to token boundaries:<br><br>- `strict`: No snapping.<br>- `contract`: Count all matches that fall _completely_ within token boundaries.<br>- `expand`: Count all matches that fall _partially_ within token boundaries.<br><br>Default is `strict`. | No                                                    |
-| `regex`: _bool_                | Whether the search pattern is a to be processed as a regex string. Default is `False`.                                                                                                                                                                                       | No                                                    |
-| `case_sensitive`: _bool_       | Whether to make searches case-sensitive. Default is `True`.                                                                                                                                                                                                                  | No                                                    |
-| `use_span_text`: _bool_        | Use the `re_finditer` search method on `line` or `sentence` windows to search for patterns across tokens. Default is `false`.                                                                                                                                                | No                                                    |
-
-The default `search_method` (`count`) finds exact matches within window text strings using Python's List `count()` function. The `regex` method does the same thing but allows for matching by regex pattern using Python's `re.findall()` function. If the window consists of tokens, these options will only find matches _within_ token boundaries. The `spacy_matcher` option allows for complex searches of tokens or token combinations using spaCy's [Matcher](https://spacy.io/usage/rule-based-matching#matcher) class. The `re_finditer` method performs a regex search of the full text of the window using Python's `re.finditer()` function. It can be configured with `alignment_mode` to make matches sensitive to token boundaries. Some of these options require additional configuration as specified in the table above. Note that since the `re_finditer` search method returns character start and end indices, the original doc is needed to map these onto token indices in order to use `alignment_mode`.
-
-> [!NOTE]
-> If a search methods cannot be used with the specified configuration, the calculator will try to override the value of `Averages.search_method` with a compatible search method or it will raise an error.
+If the window is a string, `exact` and `regex` modes will match patterns irrespective of token boundaries. If the window is a list of strings, or a spaCy `Span` object, patterns will be matched _within_ the boundaries of each token. The `spacy_rule` option allows for complex searches using spaCy's [Matcher](https://spacy.io/usage/rule-based-matching#matcher) class; however, it searches for tokens or sequence of tokens that match the patterns. The alternative is the `multi_item` mode, which will match a regular expression both within and across token boundaries. The `multi_item_exact` version escapes regex special characters so that raw strings containing characters like `"+\*?^$ ()\[\]{}|\\` can be matched. Both `multi_item` options can be configured with `alignment_mode` to determine how the matcher responds to to token boundaries. Note that because character indexes from the original document are required to locate the character range in the original document, `multi_item` modes require that you also pass the source document to the `original_doc` attribute.
 
 #### Private Methods
 
-##### `rollingwindows.calculators.Averages._configure_search_method`
+##### `rollingwindows.calculators.RWCalculator._assign_variable`
 
-Override the initial search method based on the class configuration.
-
-```python
-def _configure_search_method(self)
-```
-
-##### `rollingwindows.calculators.Averages._count_pattern_matches`
-
-Counts the matches for a single pattern in a single window using the configured search method.
+Try to use configured values if not passed by public functions.
 
 ```python
-def _count_pattern_matches(self, pattern: Union[list, str], window: Union[list, spacy.tokens.span.Span, str]) -> int
+def _assign_variable(self, var_name: str, var: Any) -> Any
 ```
 
 | Parameter                                            | Description           | Required |
 |------------------------------------------------------|-----------------------|----------|
-| `pattern`: _Union[list, str]_                        | The pattern to match. | Yes      |
-| `window`: _Union[list, spacy.tokens.span.Span, str]_ | The window to search. | Yes      |
+| `var_name`: _str_                        | The name of the variable.         | Yes      |
+| `var`: _Any_                             | The variable to be evaluated.     | Yes      |
 
-##### `rollingwindows.calculators.Averages._extract_string_pattern`
+##### `rollingwindows.calculators.RWCalculator._count_pattern_matches`
 
-Get the string pattern to match from a spaCy rule. For instance, if the rule is `[{"TEXT": "hello"}]`, this method will return `"hello"`.
+Uses Python count() to count exact character matches in a character window.
+
+```python
+def _count_character_patterns_in_character_windows(self, window: str, pattern: str) -> int
+
+| Parameter        | Description           | Required |
+|------------------|-----------------------|----------|
+| `pattern`: _str_ | The pattern to match. | Yes      |
+| `window`: _str_  | The window to search. | Yes      |
+
+##### `rollingwindows.calculators.RWCalculator._count_in_character_window`
+
+_count_in_character_window(self, window: str, pattern: str) -> int:
+Chooses the function for counting matches in character windows.
 
 ```python
 def _count_pattern_matches(self, pattern: Union[dict, list, str]) -> str
 ```
 
-| Parameter                           | Description            | Required |
-|-------------------------------------|------------------------|----------|
-| `pattern`: _Union[dict, list, str]_ | A spaCy rule to parse. | Yes      |
+| Parameter        | Description           | Required |
+|------------------|-----------------------|----------|
+| `pattern`: _str_ | The pattern to match. | Yes      |
+| `window`: _str_  | The window to search. | Yes      |
 
-##### `rollingwindows.calculators.Averages._validate_config`
+##### `rollingwindows.calculators.RWCalculator._count_token_patterns_in_token_lists`
 
-Ensures that the `Averages` object is instantiated with a valid configuration.
+Counts patterns in lists of token strings.
 
 ```python
-def validate_config(self, patterns: Union[list, str], windows: Windows, search_method: str) -> None
+def _count_token_patterns_in_token_lists(self, window: List[str], pattern: str) -> int
 ```
 
-| Parameter                      | Description                                         | Required |
-|--------------------------------|-----------------------------------------------------|----------|
-| `patterns`: _Union[list, str]_ | A pattern or list of patterns to search in windows. | Yes      |
-| `windows`: _Windows_           | A Windows object containing the windows to search.  | Yes      |
-| `search_method`: _str_         | The name of the `search_method` to use.             | Yes      |
+| Parameter             | Description                               | Required |
+|-----------------------|-------------------------------------------|----------|
+| `pattern`: _str_      | A string pattern to search for.           | Yes      |
+| `window`: _List[str]_ | A window consisting of a list of strings. | Yes      |
+
+##### `rollingwindows.calculators.RWCalculator._count_token_patterns_in_span`
+
+Counts patterns in a spaCy `Span` object.
+
+```python
+_count_token_patterns_in_span(self, window: spacy.tokens.span.Span, pattern: Union[list, str]) -> int
+```
+
+| Parameter                          | Description                                     | Required |
+|------------------------------------|-------------------------------------------------|----------|
+| `pattern`: _Union[list, str]_      | A string pattern or spaCy rule to search for.   | Yes      |
+| `window`: _spacy.tokens.span.Span_ | A window consisting of a spaCy `Span` object. | Yes      |
+
+##### `rollingwindows.calculators.RWCalculator._count_token_patterns_in_span_text`
+
+Counts patterns in span otext with token alignment.
+
+```python
+_count_token_patterns_in_span_text(self, window: str, pattern: str) -> int
+```
+
+| Parameter        | Description                                   | Required |
+|------------------|-----------------------------------------------|----------|
+| `pattern`: _str_ | A string pattern or spaCy rule to search for. | Yes      |
+| `window`: _str_  | A string window.                              | Yes      |
+
+##### `rollingwindows.calculators.RWCalculator._count_in_token_window`
+
+Chooses the function for counting matches in token windows.
+
+```python
+_count_token_patterns_in_span_text(self, window: str, pattern: str) -> int
+```
+
+| Parameter                                            | Description                                                              | Required |
+|------------------------------------------------------|--------------------------------------------------------------------------|----------|
+| `pattern`: _Union[list, str]_                        | A string pattern or spaCy rule to search for.                            | Yes      |
+| `window`: _Union[List[str], spacy.tokens.span.Span]_ | A window consisting of a list of token strings or a spaCy `Span` object. | Yes      |
+
+##### `rollingwindows.calculators.RWCalculator._extract_string_pattern`
+
+Extracts a string pattern from a spaCy rule.
+
+```python
+_extract_string_pattern(self, pattern: Union[dict, list, str]) -> str
+```
+
+| Parameter                           | Description          | Required |
+|-------------------------------------|----------------------|----------|
+| `pattern`: _Union[dict, list, str]_ | A pattern to search. | Yes      |
+
+##### `rollingwindows.calculators.RWCalculator._get_ratio`
+
+Extracts a string pattern from a spaCy rule.
+
+```python
+_get_ratio(self, counts: List[int]) -> float
+```
+
+| Parameter            | Description           | Required |
+|----------------------|-----------------------|----------|
+| `counts`: _List[int]_ | A list of two counts. | Yes      |
+
+##### `rollingwindows.calculators.RWCalculator._get_window_count`
+
+Calls character or token window methods, as appropriate.
+
+```python
+_get_window_count(self, window: Union[List[str], spacy.tokens.span.Span, str], pattern: Union[list, str]) -> int
+```
+
+| Parameter                                                 | Description                                                                       | Required |
+|-----------------------------------------------------------|-----------------------------------------------------------------------------------|----------|
+| `pattern`: _Union[list, str]_                             | A string pattern or spaCy rule to search for.                                     | Yes      |
+| `window`: _Union[List[str], spacy.tokens.span.Span, str]_ | A window consisting of a list of token strings, a spaCy `Span` object, or a string. | Yes      |
 
 #### Public Methods
 
-##### `rollingwindows.calculators.Averages.run`
+##### `rollingwindows.calculators.RWCalculator.get_averages`
 
-Runs the calculator, which performs calculations and saves the result to `Averages.data`.
+Calls `rollingwindows.calculators.RWCalculator.run` with the `query` set to "averages".
 
 ```python
-def runs(self) -> None
+def get_averages(self, windows: Iterable = None, patterns: Union[List, str] = None) -> None
 ```
 
-##### `rollingwindows.calculators.Averages.to_df`
+| Parameter                     | Description                                        | Required |
+|-------------------------------|----------------------------------------------------|----------|
+| `pattern`: _Union[List, str]_ | string pattern or spaCy rule, or a list of either. | No       |
+| `window`: _Iterable_          | A `RollingWindows.Windows` object.                 | No       |
+
+##### `rollingwindows.calculators.RWCalculator.get_counts`
+
+Calls `rollingwindows.calculators.RWCalculator.run` with the `query` set to "counts".
+
+```python
+def get_averages(self, windows: Iterable = None, patterns: Union[List, str] = None) -> None
+```
+
+| Parameter                     | Description                                        | Required |
+|-------------------------------|----------------------------------------------------|----------|
+| `pattern`: _Union[List, str]_ | string pattern or spaCy rule, or a list of either. | No       |
+| `window`: _Iterable_          | A `RollingWindows.Windows` object.                 | No       |
+
+
+##### `rollingwindows.calculators.RWCalculator.get_ratios`
+
+Calls `rollingwindows.calculators.RWCalculator.run` with the `query` set to "ratios".
+
+```python
+def get_averages(self, windows: Iterable = None, patterns: Union[List, str] = None) -> None
+```
+
+| Parameter                     | Description                                        | Required |
+|-------------------------------|----------------------------------------------------|----------|
+| `pattern`: _Union[List, str]_ | A string pattern or spaCy rule, or a list of either. | No       |
+| `window`: _Iterable_          | A `RollingWindows.Windows` object.                 | No       |
+
+##### `rollingwindows.calculators.RWCalculator.run`
+
+Runs the calculator, which performs calculations and saves the result to `RWCalculator.data`.
+
+```python
+def runs(windows: Iterable = None, patterns: Union[List, str] = None, query: str = "counts") -> None
+```
+
+| Parameter                     | Description                                                                                  | Required |
+|-------------------------------|----------------------------------------------------------------------------------------------|----------|
+| `pattern`: _Union[List, str]_ | A string pattern or spaCy rule, or a list of either.                                         | No       |
+| `window`: _Iterable_          | A `RollingWindows.Windows` object.                                                           | No       |
+| `query`: _Iterable_            | String designating whether to return "counts", "averages", or "ratios". Default is `counts`. | No       |
+
+##### `rollingwindows.calculators.RWCalculator.to_df`
 
 Converts the data in `Averages.data` to a pandas DataFrame.
 
@@ -307,7 +405,7 @@ def to_df(self, show_spacy_rules: bool = False) -> pd.DataFrame
 
 ## `rollingwindows.filters`
 
-Contains registered filters. There are currently two registered filters: `WordFilter` and `NonStopwordFilter`. Each filter is an implementation of the `Filter` protocol, which has a `metadata` property and an `apply` method.
+Contains registered filters. There are currently two registered filters: `WordFilter` and `NonStopwordFilter`. Each filter is a subclass of the `BaseFilter` class, which has a `metadata` property.
 
 ### `rollingwindows.filters.filter_doc`
 
@@ -461,9 +559,23 @@ def ensure_list(input: Any) -> list
 |----------------|--------------------|----------|
 | `input`: _Any_ | An input variable. | Yes      |
 
+### `rollingwindows.helpers.spacy_rule_to_lower`
+
+Converts a spaCy `Matcher` rule to lower case.
+
+```python
+def spacy_rule_to_lower(patterns: Union[Dict, List[Dict]], old_key: Union[List[str], str] = ["TEXT", "ORTH"], new_key: str = "LOWER") -> list
+```
+
+| Parameter                             | Description                                                                | Required |
+|---------------------------------------|----------------------------------------------------------------------------|----------|
+| `patterns`: _Union[Dict, List[Dict]]_ | A string to match against the Roman numerals pattern.                      | Yes      |
+| `old_key`: _Union[List[str], str]_    | A dictionary key or list of keys to rename. Default is `["TEXT", "ORTH"]`. | No       |
+| `new_key`: _str_                      | The new key name. Default is `LOWER`.                                      | No       |
+
 ## `rollingwindows.plotters`
 
-Contains registered plotters. There are currently two registered plotters: `RWSimplePlotter` and `RWPlotlyPlotter`. Each plotter is an implementation of the `BasePlotter` protocol, which has a `metadata` property and three methods: `run` , `file`, and `show`.
+Contains registered plotters. There are currently two registered plotters: `RWSimplePlotter` and `RWPlotlyPlotter`. Each plotter is a subclass of the `BasePlotter` class, which has a `metadata` property.
 
 ### `rollingwindows.plotters.interpolate`
 
