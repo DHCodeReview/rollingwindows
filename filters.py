@@ -8,35 +8,11 @@ from typing import List, Union
 
 import numpy as np
 import spacy
-from spacy.attrs import (
-    DEP,
-    ENT_ID,
-    ENT_IOB,
-    ENT_TYPE,
-    IS_ALPHA,
-    IS_ASCII,
-    IS_DIGIT,
-    IS_LOWER,
-    IS_PUNCT,
-    IS_SPACE,
-    IS_STOP,
-    IS_TITLE,
-    IS_UPPER,
-    LEMMA,
-    LENGTH,
-    LIKE_EMAIL,
-    LIKE_NUM,
-    LIKE_URL,
-    LOWER,
-    MORPH,
-    NORM,
-    ORTH,
-    POS,
-    SENT_START,
-    SHAPE,
-    SPACY,
-    TAG,
-)
+from spacy.attrs import (DEP, ENT_ID, ENT_IOB, ENT_TYPE, IS_ALPHA, IS_ASCII,
+                         IS_DIGIT, IS_LOWER, IS_PUNCT, IS_SPACE, IS_STOP,
+                         IS_TITLE, IS_UPPER, LEMMA, LENGTH, LIKE_EMAIL,
+                         LIKE_NUM, LIKE_URL, LOWER, MORPH, NORM, ORTH, POS,
+                         SENT_START, SHAPE, SPACY, TAG)
 from spacy.tokens import Doc
 
 from rollingwindows import helpers
@@ -161,9 +137,11 @@ def is_not_roman_numeral(s: str) -> bool:
 
 
 class BaseFilter:
+    """A base class for filters."""
 
     @property
     def metadata(self) -> dict:
+        """Get metadata for the filter object."""
         exclude = ["doc"]
         metadata = {"id": self.id}
         return metadata | dict(
@@ -174,6 +152,7 @@ class BaseFilter:
 
 
 class WordFilter(BaseFilter):
+    """A filter to remove non-words from a spaCy doc."""
     id: str = "word_filter"
 
     def __init__(
@@ -234,6 +213,7 @@ class WordFilter(BaseFilter):
 
 
 class NonStopwordFilter(BaseFilter):
+    """A filter to remove stop words from a spaCy doc."""
     id: str = "non_stopword_filter"
 
     def __init__(

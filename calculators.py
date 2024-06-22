@@ -2,13 +2,15 @@
 
 Last update: June 11 2024
 """
-from typing import Any, Iterable, List, Union
-import pandas as pd
 import re
+from typing import Any, Iterable, List, Union
+
+import pandas as pd
 import spacy
 from spacy.matcher import Matcher
 
-from rollingwindows.helpers import flatten, regex_escape, spacy_rule_to_lower, Windows
+from rollingwindows.helpers import (Windows, flatten, regex_escape,
+                                    spacy_rule_to_lower)
 
 
 class BaseCalculator:
@@ -16,6 +18,7 @@ class BaseCalculator:
 
 	@property
 	def metadata(self) -> dict:
+		"""Return metadata for the calculator."""
 		exclude = ["data", "nlp", "windows"]
 		metadata = {"id": self.id}
 		return metadata | dict(
@@ -26,6 +29,7 @@ class BaseCalculator:
 
 
 class RWCalculator(BaseCalculator):
+	"""A calculator for rolling windows."""
 	id: str = "rw_calculator"
 
 	def __init__(self,
@@ -367,4 +371,5 @@ class RWCalculator(BaseCalculator):
 		if self.query == "ratios":
 			cols = [":".join(cols)]
 		# Generate dataframe
+		return pd.DataFrame(self.data, columns=cols)
 		return pd.DataFrame(self.data, columns=cols)

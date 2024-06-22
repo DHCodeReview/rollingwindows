@@ -60,6 +60,7 @@ class BasePlotter:
 
     @property
     def metadata(self) -> dict:
+        """Return metadata about the object."""
         exclude = []
         metadata = {"id": self.id}
         return metadata | dict(

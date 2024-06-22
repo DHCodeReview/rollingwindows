@@ -129,17 +129,21 @@ def sliding_windows(
 # Windows class
 @dataclass
 class Windows:
+    """A dataclass for storing rolling windows."""
     windows: Iterable
     window_units: str
     n: int
     alignment_mode: str = "strict"
 
     def __iter__(self):
+        """Iterate over the windows."""
         return iter(self.windows)
 
 
 # RollingWindows class
 class RollingWindows:
+    """A class for managing a rolling windows workflow."""
+
     def __init__(
         self,
         doc: spacy.tokens.doc.Doc,
